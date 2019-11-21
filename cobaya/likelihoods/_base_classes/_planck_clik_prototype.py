@@ -82,9 +82,8 @@ class _planck_clik_prototype(Likelihood, HasDefaults):
         # Differences in the wrapper for lensing and non-lensing likes
         self.lensing = clik.try_lensing(self.clik_file)
         try:
-            self.clik = (
-                clik.clik_lensing(self.clik_file) if self.lensing else clik.clik(
-                    self.clik_file))
+            self.clik = clik.clik_lensing(self.clik_file) if self.lensing \
+                else clik.clik(self.clik_file)
         except clik.lkl.CError:
             # Is it that the file was not found?
             if not os.path.exists(self.clik_file):

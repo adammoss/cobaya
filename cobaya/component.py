@@ -53,7 +53,8 @@ class CobayaComponent(HasLogger, HasDefaults):
 
     class_options = {}
 
-    def __init__(self, info={}, name=None, timing=None, path_install=None):
+    def __init__(self, info={}, name=None, timing=None, path_install=None,
+                 initialize=True):
         self._name = name or self.get_qualified_class_name()
         self.path_install = path_install
         for k, value in self.class_options.items():
@@ -67,7 +68,8 @@ class CobayaComponent(HasLogger, HasDefaults):
         else:
             self.timer = None
         try:
-            self.initialize()
+            if initialize:
+                self.initialize()
         except AttributeError as e:
             if '_params' in str(e):
                 raise LoggedError(self.log, "use 'initialize_with_params' if you need to "

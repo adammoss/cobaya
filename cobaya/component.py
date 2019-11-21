@@ -1,5 +1,7 @@
 from cobaya.log import HasLogger
 from cobaya.input import HasDefaults
+from cobaya.tools import get_class_methods
+from cobaya.log import LoggedError
 import numpy as np
 import time
 from collections import OrderedDict
@@ -64,6 +66,14 @@ class CobayaComponent(HasLogger, HasDefaults):
             self.timer = Timer()
         else:
             self.timer = None
+        try:
+            self.initialize()
+        except AttributeError as e:
+            if '_params' in str(e):
+                raise LoggedError(self.log, "use 'initialize_with_params' if you need to "
+                                            "initialize after input and output parameters"
+                                            " are set (%s, %s)", self, e)
+            raise
 
     def get_name(self):
         return self._name
@@ -71,17 +81,71 @@ class CobayaComponent(HasLogger, HasDefaults):
     def __repr__(self):
         return self.get_name()
 
-    # Optional
     def close(self):
         """Finalizes the class, if something needs to be cleaned up."""
         pass
 
-    # Optional
-    def initialize(self):
+    def get_requirements(self):
         """
-        Initializes the class.
+        Get a dictionary of requirements (e.g. calculated by a another component)
+        :return: dictionary of requirements
+        """
+        return {}
+
+    def needs(self, **requirements):
+        """
+        Function to be called specifying any output products that are needed and hence
+        should be calculated by this component.
+        Requirements is a dictionary of requirement names with optional parameters for
+        each.
         """
         pass
+
+    def initialize(self):
+        """
+        Initializes the class (before getting requirements and before input_params,
+        output_params and provider assigned).
+        """
+        pass
+
+    def initialize_with_params(self):
+        """
+        Additional initialization after requirements called and input_params and
+        output_params hjve been assigned (but provider and needs assigned).
+        """
+        pass
+
+    def initialize_with_provider(self, provider):
+        """
+        Final initialization after parameters, provider and needs assigned
+        """
+        # TODO: just for backwards compatibility for the moment, save theory attribute
+        self.theory = provider
+
+    def get_can_provide_methods(self):
+        """
+        Get a dictionary of quantities X that can be retrieved using get_X methods.
+
+        :return: dictionary of the form {X: get_X method}
+        """
+        return get_class_methods(self.__class__, not_base=CobayaComponent)
+
+    def get_can_provide_params(self):
+        """
+        Get a list of derived parameters that this component can calculate.
+
+        :return: list of parameter names
+        """
+        return []
+
+    def get_allow_agnostic(self):
+        """
+        Whether it is allowed to pass all unassigned input parameters to this component
+        (True) or whether parameters must be explicitly specified.
+
+        :return: True or False
+        """
+        return False
 
     def __exit__(self, exception_type, exception_value, traceback):
         if self.timer:
@@ -115,3 +179,33 @@ class ComponentCollection(OrderedDict, HasLogger):
     def __exit__(self, exception_type, exception_value, traceback):
         for component in self.values():
             component.__exit__(exception_type, exception_value, traceback)
+
+
+class Provider(object):
+    """
+    Class used to retrieve computed requirements.
+    Just passes on get_X and get_param methods to the correct component.
+    """
+
+    def __init__(self, model, requirement_providers):
+        self.model = model
+        self.requirement_providers = requirement_providers
+        self.params = None
+
+    def set_current_input_params(self, params):
+        self.params = params
+
+    def get_param(self, param):
+        if param in self.params:
+            return self.params[param]
+        else:
+            return self.requirement_providers[param].get_param(param)
+
+    def __getattribute__(self, name):
+        if name.startswith('get_'):
+            requirement = name[4:]
+            if requirement == 'param':
+                return object.__getattribute__(self, name)
+            else:
+                return getattr(self.requirement_providers[requirement], name)
+        return object.__getattribute__(self, name)

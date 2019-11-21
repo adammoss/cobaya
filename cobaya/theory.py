@@ -33,22 +33,7 @@ class Theory(CobayaComponent):
     # Default options for all subclasses
     class_options = {"speed": -1}
 
-    def initialize(self):
-        """
-        Initializes the theory code: imports the theory code, if it is an external one,
-        and makes any necessary preparations.
-        """
-        pass
-
-    def needs(self, **arguments):
-        """
-        Function to be called by the likelihoods at their initialization,
-        to specify their requests.
-        Its specific behaviour for a code must be defined.
-        """
-        pass
-
-    def compute(self, **parameter_values_and_derived_dict):
+    def compute(self, dependency_params=None, **parameter_values_and_derived_dict):
         """
         Takes a dictionary of parameter values and computes the products needed by the
         likelihood.
@@ -67,20 +52,21 @@ class TheoryCollection(ComponentCollection):
     def __init__(self, info_theory, path_install=None, timing=None):
         super(TheoryCollection, self).__init__()
         self.set_logger("theory")
-        # TODO: multiple theory dependence, requirements etc.
-        assert not info_theory or len(info_theory) < 2, \
-            "Currently only one theory actually supported"
 
         if info_theory:
             for name, info in info_theory.items():
                 # If it has an "external" key, wrap it up. Else, load it up
-                if _external in info:
-                    theory_class = info[_external]
+                if isinstance(info, Theory):
+                    self[name] = info
                 else:
-                    theory_class = get_class(name, kind=kinds.theory)
-                self[name] = theory_class(info, path_install=path_install, timing=timing,
-                                          name=name)
+                    if _external in info:
+                        theory_class = info[_external]
+                    else:
+                        theory_class = get_class(name, kind=kinds.theory)
+                    self[name] = theory_class(info, path_install=path_install,
+                                              timing=timing, name=name)
 
+    # TODO: think about better syntax
     def __getattribute__(self, name):
         if not name.startswith('_'):
             # support old single-theory syntax

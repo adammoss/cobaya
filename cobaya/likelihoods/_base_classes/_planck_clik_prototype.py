@@ -83,7 +83,8 @@ class _planck_clik_prototype(Likelihood, HasDefaults):
         self.lensing = clik.try_lensing(self.clik_file)
         try:
             self.clik = (
-                clik.clik_lensing(self.clik_file) if self.lensing else clik.clik(self.clik_file))
+                clik.clik_lensing(self.clik_file) if self.lensing else clik.clik(
+                    self.clik_file))
         except clik.lkl.CError:
             # Is it that the file was not found?
             if not os.path.exists(self.clik_file):
@@ -98,6 +99,8 @@ class _planck_clik_prototype(Likelihood, HasDefaults):
                            "initialization of incompatible likelihoods (e.g. polarised "
                            "vs non-polarised 'lite' likelihoods. See error info below:")
             raise
+
+    def initialize_with_params(self):
         # Check that the parameters are the right ones
         self.expected_params = list(self.clik.extra_parameter_names)
         differences = are_different_params_lists(
@@ -163,7 +166,8 @@ class _planck_clik_prototype(Likelihood, HasDefaults):
         return result
 
     @classmethod
-    def install(cls, path=None, force=False, code=True, data=True, no_progress_bars=False):
+    def install(cls, path=None, force=False, code=True, data=True,
+                no_progress_bars=False):
         name = cls.get_qualified_class_name()
         log = logging.getLogger(name)
         path_names = {"code": common_path, "data": get_data_path(name)}
@@ -206,7 +210,8 @@ class _planck_clik_prototype(Likelihood, HasDefaults):
                 # Additional data and covmats, stored in same repo as the 2018 python lensing likelihood
                 from cobaya.likelihoods.planck_2018_lensing.native import native
                 if not native.is_installed(data=True, path=path):
-                    success *= native.install(path=path, force=force, code=code, data=data,
+                    success *= native.install(path=path, force=force, code=code,
+                                              data=data,
                                               no_progress_bars=no_progress_bars)
         return success
 
@@ -255,7 +260,8 @@ def is_installed_clik(path, log_and_fail=False, import_it=True):
         clik_path = os.path.join(get_clik_source_folder(path), 'lib/python/site-packages')
     except FileNotFoundError:
         if log_and_fail:
-            raise LoggedError(log, "The given folder does not exist: '%s'", clik_path or path)
+            raise LoggedError(log, "The given folder does not exist: '%s'",
+                              clik_path or path)
         return False
     sys.path.insert(0, clik_path)
     try:

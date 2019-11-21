@@ -21,7 +21,7 @@ from copy import deepcopy
 
 # Local
 from cobaya.conventions import _external
-from cobaya.conventions import kinds, _chi2, _separator, _self_name
+from cobaya.conventions import kinds, _self_name
 from cobaya.conventions import _module_path
 from cobaya.tools import get_class, get_external_function, getfullargspec
 from cobaya.log import LoggedError
@@ -40,49 +40,20 @@ class Likelihood(CobayaComponent):
         if standalone:
             # TODO: would probably be more natural if defaults were already read here
             default_info = self.get_defaults()
-            if kinds.likelihood in default_info:
-                default_info = default_info[kinds.likelihood][
-                    name if _self_name not in default_info[kinds.likelihood]
-                    else _self_name]
-            default_info.update(info)
-            info = default_info
+            if default_info:
+                if kinds.likelihood in default_info:
+                    default_info = default_info[kinds.likelihood][
+                        name if _self_name not in default_info[kinds.likelihood]
+                        else _self_name]
+                default_info.update(info)
+                info = default_info
         super(Likelihood, self).__init__(info, name=name, timing=timing,
                                          path_install=path_install)
         # States, to avoid recomputing
         self._n_states = 3
         self._states = [{"params": None, "logp": None, "_derived": None,
-                         "theory_params": None, "last": 0}
+                         "dependency_params": None, "last": 0}
                         for _ in range(self._n_states)]
-        if standalone:
-            self.initialize()
-
-    # Optional
-    def initialize(self):
-        """
-        Initializes the specifics of this likelihood.
-        Note that at this point we know `the `self.input_params``
-        and the ``self.output_params`` if run from Cobaya.
-        """
-        pass
-
-    # Optional
-    def get_requirements(self):
-        """
-        Get a dictionary of requirements to request from the theory
-        :return: dictionary of requirements
-        """
-        return {}
-
-    # Optional
-    def add_theory(self):
-        """
-        Performs any necessary initialization on the theory side,
-        e.g. requests observables.
-        By default just call get_requirements and pass to theory
-        """
-        needs = self.get_requirements()
-        if needs:
-            self.theory.needs(**needs)
 
     # Mandatory
     def logp(self, **params_values):
@@ -107,7 +78,7 @@ class Likelihood(CobayaComponent):
 
     # Other general methods
 
-    def _logp_cached(self, theory_params=None, cached=True, _derived=None,
+    def _logp_cached(self, dependency_params=None, cached=True, _derived=None,
                      **params_values):
         """
         Wrapper for the `logp` method that caches logp's and derived params.
@@ -124,8 +95,8 @@ class Likelihood(CobayaComponent):
                            if self._states[i]["params"] == params_values)
             # StopIteration not raised, so state exists, but maybe the theory params have
             # changed? In that case, I would still have to re-compute the likelihood
-            if self._states[i_state]["theory_params"] != theory_params:
-                self.log.debug("Recomputing logp because theory params changed.")
+            if self._states[i_state]["dependency_params"] != dependency_params:
+                self.log.debug("Recomputing logp because dependency params changed.")
                 raise StopIteration
             if _derived is not None:
                 _derived.update(self._states[i_state]["derived"] or {})
@@ -134,7 +105,7 @@ class Likelihood(CobayaComponent):
             # update the (first) oldest one and compute
             i_state = lasts.index(min(lasts))
             self._states[i_state]["params"] = params_values
-            self._states[i_state]["theory_params"] = deepcopy(theory_params)
+            self._states[i_state]["dependency_params"] = deepcopy(dependency_params)
             if self.timer:
                 self.timer.start()
             try:
@@ -182,9 +153,8 @@ class LikelihoodExternalFunction(Likelihood):
         self.has_theory = "_theory" in argspec.args
         if self.has_theory:
             theory_kw_index = argspec.args[-len(argspec.defaults):].index("_theory")
-            self.needs = argspec.defaults[theory_kw_index]
-            if isinstance(self.needs, (set, tuple, list)):
-                self.needs = {p: None for p in self.needs}
+            self._needs = argspec.defaults[theory_kw_index]
+
         # States, to avoid recomputing
         self._n_states = 3
         self._states = [{"params": None, "logp": None, "derived": None, "last": 0}
@@ -192,7 +162,7 @@ class LikelihoodExternalFunction(Likelihood):
         self.log.info("Initialized external likelihood.")
 
     def get_requirements(self):
-        return self.needs if self.has_theory else {}
+        return self._needs if self.has_theory else {}
 
     def logp(self, **params_values):
         # if no derived params defined in external func, delete the "_derived" argument
@@ -228,41 +198,13 @@ class LikelihoodCollection(ComponentCollection):
         self.theory = theory
         # Get the individual likelihood classes
         for name, info in info_likelihood.items():
-            # If it has an "external" key, wrap it up. Else, load it up
-            if _external in info:
+            if isinstance(info, Likelihood):
+                self[name] = info
+            elif _external in info:
+                # If it has an "external" key, wrap it up. Else, load it up
                 self[name] = LikelihoodExternalFunction(info, name, timing=timing)
             else:
                 like_class = get_class(name, kind=kinds.likelihood,
                                        module_path=info.pop(_module_path, None))
                 self[name] = like_class(info, path_install=path_install, timing=timing,
                                         standalone=False, name=name)
-
-    def logps(self, input_params, theory_params_dict=None, derived_dict=None,
-              cached=True):
-        """
-        Computes observables and returns the (log) likelihoods *separately*.
-        It takes a list of **input** parameter values, in the same order as they appear
-        in the `OrderedDictionary` of the :class:`LikelihoodCollection`.
-        To compute the derived parameters, it takes an optional keyword `derived_dict`
-        as an empty list, which is then populated with the derived parameter values.
-        """
-        self.log.debug("Got input parameters: %r", input_params)
-        # Prepare the likelihood-defined derived parameters (only computed if requested)
-        # Notice that they are in general different from the sampler-defined ones.
-        # Compute each log-likelihood, and optionally get the respective derived params
-        logps = []
-        want_derived = derived_dict is not None
-        this_derived_dict = {} if want_derived else None
-        for like in self.values():
-            this_params_dict = {p: input_params[p] for p in like.input_params}
-            logps += [like._logp_cached(theory_params=theory_params_dict,
-                                        _derived=this_derived_dict, cached=cached,
-                                        **this_params_dict)]
-            if want_derived:
-                if this_derived_dict:
-                    derived_dict.update(this_derived_dict)
-                    this_derived_dict.clear()
-                derived_dict[
-                    _chi2 + _separator + like.get_name().replace(".", "_")] = -2 * logps[
-                    -1]
-        return np.array(logps)

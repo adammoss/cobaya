@@ -22,7 +22,7 @@ import pkg_resources
 # Local
 from cobaya.conventions import _products_path, _path_install, _resume, _force
 from cobaya.conventions import _output_prefix, _debug, _debug_file, _external, _self_name
-from cobaya.conventions import _params, _prior, kinds
+from cobaya.conventions import _params, _prior, kinds, _provides, _requires
 
 from cobaya.conventions import partag, _input_params, _output_params, _module_path
 from cobaya.conventions import _yaml_extensions
@@ -107,7 +107,9 @@ def get_default_info(module_or_class, kind=None, fail_if_not_found=False,
                 lambda x: yaml_dump(x) if return_yaml else x)(
                 {_kind: {module_or_class: {}}})
     except Exception as e:
-        raise LoggedError(log, "Failed to get defaults for module or class '%s' [%s]",
+        # TODO support likelihoods without .yaml
+        raise LoggedError(log, "Failed to get defaults for module or class '%s' "
+                               "(no yaml?).' [%s]",
                           ("%s:" % _kind if _kind else "") + module_or_class, e)
 
     # TODO: find batter place to put this definition where it doesn't give circular ref
@@ -185,8 +187,8 @@ def update_info(info):
             updated_info[block][module] = default_class_info[block][module] or {}
             # Update default options with input info
             # Consistency is checked only up to first level! (i.e. subkeys may not match)
-            ignore = {_external, partag.renames, _input_params, _output_params,
-                      _module_path}
+            ignore = {_external, _provides, _requires, partag.renames, _input_params,
+                      _output_params, _module_path}
             options_not_recognized = (set(input_info[block][module])
                                       .difference(ignore)
                                       .difference(set(updated_info[block][module])))
@@ -215,10 +217,12 @@ def update_info(info):
                         block, module, did_you_mean, block)
             updated_info[block][module].update(input_info[block][module])
             # Store default parameters and priors of class, and save to combine later
-            if block == kinds.likelihood:
-                params_info = default_class_info.get(_params, {})
+            # TODO: check this works for theories (was restricted to likelihoods)
+            # need to not set params for assign_params to give all leftover params
+            params_info = default_class_info.get(_params)
+            if params_info is not None or block == kinds.likelihood:
                 updated_info[block][module].update({_params: list(params_info or [])})
-                default_params_info[module] = params_info
+                default_params_info[module] = params_info or {}
                 default_prior_info[module] = default_class_info.get(_prior, {})
     # Add priors info, after the necessary checks
     if _prior in input_info or any(default_prior_info.values()):

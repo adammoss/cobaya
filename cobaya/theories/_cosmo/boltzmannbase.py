@@ -15,8 +15,11 @@ from itertools import chain
 
 # Local
 from cobaya.theory import Theory
-from cobaya.tools import fuzzy_match, create_banner, deepcopy_where_possible
+from cobaya.tools import deepcopy_where_possible
 from cobaya.log import LoggedError
+from cobaya.conventions import _requires, _c_km_s
+
+H_units_conv_factor = {"1/Mpc": 1, "km/s/Mpc": _c_km_s}
 
 
 class BoltzmannBase(Theory):
@@ -24,13 +27,23 @@ class BoltzmannBase(Theory):
     def initialize(self):
         # Generate states, to avoid recomputing
         self._n_states = 3
-        self._states = [
-            {"params": None, "derived": None, "derived_extra": None, "last": 0}
-            for _ in range(self._n_states)]
         # Dict of named tuples to collect requirements and computation methods
         self.collectors = {}
         # Additional input parameters to pass to CAMB, and attributes to set_ manually
         self.extra_args = deepcopy_where_possible(self.extra_args) or {}
+        self._needs = None
+        self._clear_cache()
+
+    def get_requirements(self):
+        return {p: None for p in getattr(self, _requires, [])}
+
+    def get_allow_agnostic(self):
+        return True
+
+    def _clear_cache(self):
+        self._states = [
+            {"params": None, "derived": None, "derived_extra": None, "last": 0}
+            for _ in range(self._n_states)]
 
     def needs(self, **requirements):
         r"""
@@ -52,9 +65,9 @@ class BoltzmannBase(Theory):
           Takes ``"z": [list_of_evaluated_redshifts]``, ``"k_max": [k_max]``,
           ``"extrap_kmax": [max_k_max_extrapolated]``, ``"nonlinear": [True|False]``,
           ``"vars_pairs": [["delta_tot", "delta_tot"], ["Weyl", "Weyl"], [...]]}``.
-        - ``H={'z': [z_1, ...], 'units': '1/Mpc' or 'km/s/Mpc'}``: Hubble
+        - ``Hubble={'z': [z_1, ...], 'units': '1/Mpc' or 'km/s/Mpc'}``: Hubble
           rate at the redshifts requested, in the given units. Get it with
-          :func:`~BoltzmannBase.get_H`.
+          :func:`~BoltzmannBase.get_Hubble`.
         - ``angular_diameter_distance={'z': [z_1, ...]}``: Physical angular
           diameter distance to the redshifts requested. Get it with
           :func:`~BoltzmannBase.get_angular_diameter_distance`.
@@ -68,8 +81,10 @@ class BoltzmannBase(Theory):
         - **Other derived parameters** that are not included in the input but whose
           value the likelihood may need.
         """
-        if not getattr(self, "_needs", None):
-            self._needs = dict([(p, None) for p in self.output_params])
+        # set-set states whenever needs change
+        self._clear_cache()
+
+        self._needs = self._needs or {p: None for p in self.output_params}
         # TO BE DEPRECATED IN >=1.3
         for product, capitalization in {
             "cl": "Cl", "pk_interpolator": "Pk_interpolator"}.items():
@@ -128,7 +143,7 @@ class BoltzmannBase(Theory):
                                 "Source %r requested twice with different specification: "
                                 "%r vs %r.", window, self.sources[source])
                 self._needs[k].update(v)
-            elif k in ["H", "angular_diameter_distance",
+            elif k in ["Hubble", "angular_diameter_distance",
                        "comoving_radial_distance", "fsigma8"]:
                 if k not in self._needs:
                     self._needs[k] = {}
@@ -140,14 +155,24 @@ class BoltzmannBase(Theory):
             else:
                 raise LoggedError(self.log, "Unknown required product: '%s'.", k)
 
-    def compute(self, _derived=None, cached=True, **params_values_dict):
+    def compute(self, dependency_params=None, _derived=None, cached=True,
+                **params_values_dict):
         lasts = [self._states[i]["last"] for i in range(self._n_states)]
+        for set_param in getattr(self, _requires, []):
+            # mess handling optional parameters that may be computed elsewhere, eg. YHe
+            params_values_dict[set_param] = self.theory.get_param(set_param)
+        if dependency_params:
+            dependency_dict = dependency_params.copy()
+            dependency_dict.update(params_values_dict)
+        else:
+            dependency_dict = params_values_dict
         try:
             if not cached:
                 raise StopIteration
+
             # are the parameter values there already?
             i_state = next(i for i in range(self._n_states)
-                           if self._states[i]["params"] == params_values_dict)
+                           if self._states[i]["params"] == dependency_dict)
             # has any new product been requested?
             for product in self.collectors:
                 next(k for k in self._states[i_state] if k == product)
@@ -161,12 +186,18 @@ class BoltzmannBase(Theory):
             # update the (first) oldest one and compute
             i_state = lasts.index(min(lasts))
             self.log.debug("Computing (state %d)", i_state)
+            # Store them, to use them later to identify the state
+            # TODO: changed the _states assignment logic slightly here, check
+            # are we cacheing run_calculation fails?
+            self._states[i_state]["params"] = None
             if self.timer:
                 self.timer.start()
             if not self.run_calculation(_derived, i_state, **params_values_dict):
                 return 0
             if self.timer:
                 self.timer.increment(self.log)
+            self._states[i_state]["params"] = dependency_dict
+
         # make this one the current one by decreasing the antiquity of the rest
         for i in range(self._n_states):
             self._states[i]["last"] -= max(lasts)
@@ -201,7 +232,7 @@ class BoltzmannBase(Theory):
         """
         pass
 
-    def get_H(self, z, units="km/s/Mpc"):
+    def get_Hubble(self, z, units="km/s/Mpc"):
         r"""
         Returns the Hubble rate at the given redshifts.
 
@@ -211,11 +242,11 @@ class BoltzmannBase(Theory):
         The available units are ``km/s/Mpc`` (i.e. ``c*H(Mpc^-1)``) and ``1/Mpc``.
         """
         try:
-            return self._get_z_dependent("H", z) * self.H_units_conv_factor[units]
+            return self._get_z_dependent("Hubble", z) * H_units_conv_factor[units]
         except KeyError:
             raise LoggedError(
                 self.log, "Units not known for H: '%s'. Try instead one of %r.",
-                units, list(self.H_units_conv_factor))
+                units, list(H_units_conv_factor))
 
     def get_angular_diameter_distance(self, z):
         r"""
@@ -236,7 +267,7 @@ class BoltzmannBase(Theory):
         return self._get_z_dependent("comoving_radial_distance", z)
 
     def get_Pk_grid(self, var_pair=("delta_tot", "delta_tot"), nonlinear=True,
-                         _state=None):
+                    _state=None):
         """
         Get  matter power spectrum, e.g. suitable for splining.
         Returned arrays may be bigger or more densely sampled than requested, but will
@@ -319,29 +350,6 @@ class BoltzmannBase(Theory):
     def current_state(self):
         lasts = [self._states[i]["last"] for i in range(self._n_states)]
         return self._states[lasts.index(max(lasts))]
-
-    def __getattr__(self, method):
-        try:
-            object.__getattr__(self, method)
-        except AttributeError:
-            if method.startswith("get"):
-                # Deprecated method names
-                # -- this will be deprecated in favour of the error below
-                new_names = {"get_cl": "get_Cl"}
-                if method in new_names:
-                    msg = create_banner(
-                        "Method '%s' has been re-capitalized to '%s'.\n"
-                        "Overriding for now, but please change it: "
-                        "this will produce an error in the future." % (
-                            method, new_names[method]))
-                    for line in msg.split("\n"):
-                        self.log.warning(line)
-                    return getattr(self, new_names[method])
-                # End of deprecation block ------------------------------
-                raise LoggedError(
-                    self.log, "Getter method for cosmology product %r is not known. "
-                              "Maybe you meant any of %r?",
-                    method, fuzzy_match(method, dir(self), n=3))
 
 
 class PowerSpectrumInterpolator(RectBivariateSpline):

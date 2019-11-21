@@ -121,7 +121,8 @@ class Parameterization(HasLogger):
         self._derived_funcs = dict()
         self._derived_args = dict()
         # Notice here that expand_info_param *always* adds a partag.derived:True tag
-        # to infos without _prior or partag.value, and a partag.value field to fixed params
+        # to infos without _prior or partag.value, and a partag.value field
+        # to fixed params
         for p, info in info_params.items():
             self._infos[p] = deepcopy(info)
             if is_fixed_param(info):

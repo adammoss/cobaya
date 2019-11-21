@@ -219,9 +219,9 @@ class classy(BoltzmannBase):
         for k, v in self._needs.items():
             # Products and other computations
             if k == "Cl":
-                if any([("t" in cl.lower()) for cl in v]):
+                if any(("t" in cl.lower()) for cl in v):
                     self.extra_args["output"] += " tCl"
-                if any([(("e" in cl.lower()) or ("b" in cl.lower())) for cl in v]):
+                if any((("e" in cl.lower()) or ("b" in cl.lower())) for cl in v):
                     self.extra_args["output"] += " pCl"
                 # For modern experiments, always lensed Cl's!
                 self.extra_args["output"] += " lCl"
@@ -230,13 +230,12 @@ class classy(BoltzmannBase):
                 self.extra_args["l_max_scalars"] = max(v.values())
                 self.collectors[k] = Collector(
                     method="lensed_cl", kwargs={"lmax": self.extra_args["l_max_scalars"]})
-            elif k == "H":
+            elif k == "Hubble":
                 self.collectors[k] = Collector(
-                    method="Hubble",
+                    method="H",
                     args=[np.atleast_1d(v["z"])],
                     args_names=["z"],
                     arg_array=0)
-                self.H_units_conv_factor = {"1/Mpc": 1, "km/s/Mpc": _c_km_s}
             elif k == "angular_diameter_distance":
                 self.collectors[k] = Collector(
                     method="angular_distance",
@@ -276,7 +275,7 @@ class classy(BoltzmannBase):
             else:
                 raise LoggedError(self.log, "Requested product not known: %r", {k: v})
         # Derived parameters (if some need some additional computations)
-        if any([("sigma8" in s) for s in self.output_params or requirements]):
+        if any(("sigma8" in s) for s in self.output_params or requirements):
             self.extra_args["output"] += " mPk"
             self.extra_args["P_k_max_h/Mpc"] = (
                 max(1, self.extra_args.get("P_k_max_h/Mpc", 0)))
@@ -285,9 +284,9 @@ class classy(BoltzmannBase):
             self.extra_args["modes"] = "s,t"
         # If B spectrum with l>50, or lensing, recommend using Halofit
         cls = self._needs.get("Cl", {})
-        if (((any([("b" in cl.lower()) for cl in cls]) and
+        if (((any(("b" in cl.lower()) for cl in cls) and
               max([cls[cl] for cl in cls if "b" in cl.lower()]) > 50) or
-             any([("p" in cl.lower()) for cl in cls]) and
+             any(("p" in cl.lower()) for cl in cls) and
              not self.extra_args.get("non linear"))):
             self.log.warning("Requesting BB for ell>50 or lensing Cl's: "
                              "using a non-linear code is recommended (and you are not "
@@ -317,7 +316,7 @@ class classy(BoltzmannBase):
             self.z_for_matter_power = np.empty(0)
         self.z_for_matter_power = np.flip(np.sort(np.unique(np.concatenate(
             [self.z_for_matter_power, np.atleast_1d(z)]))), axis=0)
-        self.extra_args["z_pk"] = " ".join(["%g" % zi for zi in self.z_for_matter_power])
+        self.extra_args["z_pk"] = " ".join("%g" % zi for zi in self.z_for_matter_power)
 
     def translate_param(self, p, force=False):
         # "force=True" is used when communicating with likelihoods, which speak "planck"
@@ -325,9 +324,7 @@ class classy(BoltzmannBase):
             return self.planck_to_classy.get(p, p)
         return p
 
-    def set(self, params_values_dict, i_state):
-        # Store them, to use them later to identify the state
-        self._states[i_state]["params"] = deepcopy(params_values_dict)
+    def set(self, params_values_dict):
         # Prepare parameters to be passed: this-iteration + extra
         args = {self.translate_param(p): v for p, v in params_values_dict.items()}
         args.update(self.extra_args)
@@ -338,7 +335,7 @@ class classy(BoltzmannBase):
 
     def run_calculation(self, _derived, i_state, **params_values_dict):
         # Set parameters
-        self.set(params_values_dict, i_state)
+        self.set(params_values_dict)
         # Compute!
         try:
             self.classy.compute()
@@ -487,7 +484,6 @@ class classy(BoltzmannBase):
             values = values[0]
         return values[i_kwarg_z]
 
-
     def close(self):
         self.classy.struct_cleanup()
 
@@ -534,3 +530,16 @@ class classy(BoltzmannBase):
             log.error("Compilation failed!")
             return False
         return True
+
+    def get_can_provide_params(self):
+        # TODO: update (possible issue with that "force" option)
+        names = ['Omega_Lambda', 'Omega_cdm', 'Omega_b', 'Omega_m', 'rs_drag', 'z_reio',
+                 'YHe', 'Omega_k']
+
+        if self.use_planck_names:
+            removes = []
+            for name, map in self.planck_to_camb.items():
+                if map in names:
+                    names.append(name)
+                    removes.append(map)
+            return [name for name in names if name not in removes]

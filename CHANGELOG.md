@@ -1,5 +1,17 @@
 ## 2.1  – 2019-XX-XX
 
+## This branch
+
+- allow multiple inter-dependent theory classes
+- allow theories and likelihoods to all specify requirements and define derived products 
+  with general dependencies
+- .theory member of likelihoods is now Provider class instance
+- 'requires' and 'provides' yaml keywords to specify which of ambiguous components handles
+   specific requirements
+- renamed H (array of H(z)) to Hubble
+- three initialization methods: initialize (from __init__), initialize_with_params 
+  (after parameter assignment) and initialize_with_provider (once all configured)
+
 ### General
 
 - Some significant internal refactoring to tidy up some code and make it easier to make

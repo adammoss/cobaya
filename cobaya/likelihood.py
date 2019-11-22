@@ -76,13 +76,14 @@ class Likelihood(Theory):
         """
         raise LoggedError(self.log, "Exact marginal likelihood not defined.")
 
-    def run_calculation(self, state, _derived=None, **params_values_dict):
+    def run_calculation(self, state, want_derived=False, **params_values_dict):
         """
         Calculates the likelihood and any derived parameters or needs.
 
         """
+        derived = {} if want_derived else None
         try:
-            state["logp"] = self.logp(_derived=_derived, **params_values_dict)
+            state["logp"] = self.logp(_derived=derived, **params_values_dict)
         except Exception as e:
             if not self.stop_at_error:
                 state["logp"] = -np.inf
@@ -93,9 +94,13 @@ class Likelihood(Theory):
                 return False
             else:
                 raise
+        else:
+            if want_derived:
+                state["derived"] = derived.copy()
+
         return True
 
-    def cached_logp(self):
+    def get_current_logp(self):
         return self._current_state["logp"]
 
     def wait(self):

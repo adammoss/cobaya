@@ -333,7 +333,7 @@ class classy(BoltzmannBase):
         self.classy.struct_cleanup()
         self.classy.set(**args)
 
-    def run_calculation(self, state, _derived=None, **params_values_dict):
+    def run_calculation(self, state, want_derived=False, **params_values_dict):
         # Set parameters
         self.set(params_values_dict)
         # Compute!
@@ -389,12 +389,10 @@ class classy(BoltzmannBase):
             if collector.post:
                 state[product] = collector.post(state[product])
         # Prepare derived parameters
-        d, d_extra = self._get_derived_all(derived_requested=(_derived == {}))
-        if _derived == {}:
-            _derived.update(d)
-        state["derived"] = odict(
-            (p, (_derived or {}).get(p)) for p in self.output_params)
-        # Prepare necessary extra derived parameters
+        d, d_extra = self._get_derived_all(derived_requested=want_derived)
+        if want_derived:
+            state["derived"] = odict((p, d.get(p)) for p in self.output_params)
+            # Prepare necessary extra derived parameters
         state["derived_extra"] = deepcopy(d_extra)
         return True
 

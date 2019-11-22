@@ -182,7 +182,7 @@ class Model(HasLogger):
         return logprior
 
     def logps(self, input_params, return_derived=True, cached=True, make_finite=False):
-        # Calculate required theory results and returns likelihoods
+        # Calculate required results and returns likelihoods
         depend_params_dict = {}
         compute_success = True
         derived_dict = {}
@@ -190,12 +190,11 @@ class Model(HasLogger):
         self.log.debug("Got input parameters: %r", input_params)
         n_theory = len(self.theory)
         loglikes = np.empty(len(self.likelihood))
-        this_derived_dict = {} if return_derived else None
 
         for component, index in self.component_order.items():
             # TODO: only call components with parameter changes?
             params = {p: input_params[p] for p in component.input_params}
-            compute_success = component.compute(_derived=this_derived_dict,
+            compute_success = component.compute(want_derived=return_derived,
                                                 dependency_params=depend_params_dict,
                                                 cached=cached, **params)
             if not compute_success:
@@ -204,19 +203,18 @@ class Model(HasLogger):
                     "Calculation failed, skipping rest of calculations ")
                 break
 
+            if return_derived:
+                derived_dict.update(component.get_current_derived())
+
             if isinstance(component, Likelihood):
-                loglikes[index - n_theory] = component.cached_logp()
+                loglikes[index - n_theory] = component.get_current_logp()
                 if return_derived:
-                    this_derived_dict[_chi2 + _separator +
-                                      component.get_name().replace(".", "_")] \
+                    derived_dict[_chi2 + _separator +
+                                 component.get_name().replace(".", "_")] \
                         = -2 * loglikes[index - n_theory]
             else:
                 # TODO: make list of actual dependencies
                 depend_params_dict.update(params)
-
-            if return_derived:
-                derived_dict.update(this_derived_dict)
-                this_derived_dict.clear()
 
         if make_finite:
             loglikes = np.nan_to_num(loglikes)

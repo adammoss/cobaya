@@ -117,8 +117,9 @@ def get_default_info(module_or_class, kind=None, fail_if_not_found=False,
     from cobaya.likelihood import Likelihood
     from cobaya.theory import Theory
     from cobaya.sampler import Sampler
-    component_base_classes = {kinds.sampler: Sampler, kinds.theory: Theory,
-                              kinds.likelihood: Likelihood}
+    component_base_classes = {kinds.sampler: Sampler, kinds.likelihood: Likelihood,
+                              kinds.theory: Theory,
+                              }
 
     if cls:
         for kind_name, _cls in component_base_classes.items():

@@ -474,7 +474,7 @@ class camb(BoltzmannBase):
                 "Some of the parameters passed to CAMB were not recognized: %s" % str(e))
         return False
 
-    def run_calculation(self, state, _derived=None, **params_values_dict):
+    def run_calculation(self, state, want_derived=False, **params_values_dict):
         # Set parameters
         camb_params = self.set(params_values_dict, state)
         # Failed to set parameters but no error raised
@@ -511,9 +511,8 @@ class camb(BoltzmannBase):
         # Prepare derived parameters
         intermediates = CAMBOutputs(camb_params, results,
                                     results.get_derived_params() if results else None)
-        if _derived == {}:
-            _derived.update(self._get_derived_all(intermediates))
-            state["derived"] = _derived.copy()
+        if want_derived:
+            state["derived"] = self._get_derived_all(intermediates)
         # Prepare necessary extra derived parameters
         state["derived_extra"] = {
             p: self._get_derived(p, intermediates) for p in self.derived_extra}

@@ -40,7 +40,7 @@ class Theory(CobayaComponent):
         self.provider = None  # set to Provider instance before calculations
         # Generate cache states, to avoid recomputing
         # TODO: size of the cache should be set by the sampler
-        self._states = deque(maxlen=3)
+        self.set_cache_size(3)
 
     def get_requirements(self):
         """
@@ -70,6 +70,7 @@ class Theory(CobayaComponent):
     def run_calculation(self, state, _derived=None, **params_values_dict):
         """
         Do the actual calculation and store results in state dict
+
         :param state: dictionary to store results
         :param _derived: optional of optional output parameters
         :param params_values_dict: parameter values
@@ -77,15 +78,20 @@ class Theory(CobayaComponent):
         """
         return False
 
-    def compute(self, dependency_params=None, _derived=None, cached=True,
+    def set_cache_size(self, n):
+        """
+        Set how many states to cache
+        """
+        self._states = deque(maxlen=n)
+
+    def compute(self, dependency_params=None, want_derived=False, cached=True,
                 **params_values_dict):
         """
         Takes a dictionary of parameter values and computes the products needed by the
-        likelihood, or used the cached value if that exists for these parameters.
-        If passed a keyword `derived` with an empty dictionary, it populates it with the
-        value of the derived parameters for the present set of sampled and fixed parameter
-        values.
-        """
+        likelihood, or uses the cached value if that exists for these parameters.
+        If want_derived, the derived parameters are saved in the computed state (
+        retrieved using get_current_derived(self)):
+.        """
         params_values_dict = params_values_dict.copy()
         self.log.debug("Got parameters %r", params_values_dict)
 
@@ -100,17 +106,18 @@ class Theory(CobayaComponent):
             # are the parameter values there already?
             state = next(state for state in self._states
                          if state["params"] == params_values_dict and
-                         state["dependency_params"] == dependency_params)
+                         state["dependency_params"] == dependency_params
+                         and (not want_derived or state["derived"] is not None))
         except StopIteration:
 
             self.log.debug("Computing new state")
             state = {"params": params_values_dict,
                      "dependency_params": dependency_params.copy(),
-                     "derived": None, "derived_extra": None}
+                     "derived": {} if want_derived else None, "derived_extra": None}
             if self.timer:
                 self.timer.start()
             try:
-                if not self.run_calculation(state, _derived, **params_values_dict):
+                if not self.run_calculation(state, want_derived, **params_values_dict):
                     return False
             except LoggedError:
                 raise
@@ -123,16 +130,16 @@ class Theory(CobayaComponent):
             if self.timer:
                 self.timer.increment(self.log)
         else:
-            # Get (pre-computed) derived parameters
-            if _derived == {}:
-                _derived.update(state["derived"] or {})
             self.log.debug("Re-using computed results")
             self._states.remove(state)
 
-        # make this one the current one
+        # make this state the current one
         self._states.appendleft(state)
         self._current_state = state
         return True
+
+    def get_current_derived(self):
+        return self._current_state.get("derived", {})
 
     def initialize_with_params(self):
         """
@@ -166,7 +173,7 @@ class Theory(CobayaComponent):
     def get_allow_agnostic(self):
         """
         Whether it is allowed to pass all unassigned input parameters to this component
-        (True) or whether parameters must be explicitly specified.
+        (True) or whether parameters must be explicitly specified (False).
 
         :return: True or False
         """

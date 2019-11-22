@@ -11,6 +11,7 @@
 - renamed H (array of H(z)) to Hubble
 - three initialization methods: initialize (from __init__), initialize_with_params 
   (after parameter assignment) and initialize_with_provider (once all configured)
+- Likelihood now inherits from Theory, with general cached compute and deque states
 
 ### General
 

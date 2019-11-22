@@ -98,6 +98,7 @@ class _planck_clik_prototype(Likelihood, HasDefaults):
                            "initialization of incompatible likelihoods (e.g. polarised "
                            "vs non-polarised 'lite' likelihoods. See error info below:")
             raise
+        self.l_maxs = self.clik.get_lmax()
 
     def initialize_with_params(self):
         # Check that the parameters are the right ones
@@ -110,7 +111,6 @@ class _planck_clik_prototype(Likelihood, HasDefaults):
                           "If this has happened without you fiddling with the defaults, "
                           "please open an issue in GitHub.", differences)
         # Placeholder for vector passed to clik
-        self.l_maxs = self.clik.get_lmax()
         length = (len(self.l_maxs) if self.lensing else len(self.clik.get_has_cl()))
         self.vector = np.zeros(np.sum(self.l_maxs) + length + len(self.expected_params))
 

@@ -538,8 +538,9 @@ class classy(BoltzmannBase):
 
         if self.use_planck_names:
             removes = []
-            for name, map in self.planck_to_camb.items():
+            for name, map in self.planck_to_classy.items():
                 if map in names:
                     names.append(name)
                     removes.append(map)
             return [name for name in names if name not in removes]
+        return names

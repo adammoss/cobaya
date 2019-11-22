@@ -160,7 +160,7 @@ class _planck_clik_prototype(Likelihood, HasDefaults):
             result &= os.path.exists(os.path.realpath(
                 os.path.join(kwargs["path"], "data", data_path, filename)))
             # Check for additional data and covmats
-            from cobaya.likelihoods.planck_2018_lensing.native import native
+            from cobaya.likelihoods.planck_2018_lensing import native
             result &= native.is_installed(**kwargs)
         return result
 
@@ -207,7 +207,7 @@ class _planck_clik_prototype(Likelihood, HasDefaults):
                     log.error("Not possible to download this likelihood.")
                     success = False
                 # Additional data and covmats, stored in same repo as the 2018 python lensing likelihood
-                from cobaya.likelihoods.planck_2018_lensing.native import native
+                from cobaya.likelihoods.planck_2018_lensing import native
                 if not native.is_installed(data=True, path=path):
                     success *= native.install(path=path, force=force, code=code,
                                               data=data,

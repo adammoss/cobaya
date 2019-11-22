@@ -190,8 +190,8 @@ class Model(HasLogger):
         n_theory = len(self.theory)
         loglikes = np.empty(len(self.likelihood))
 
-        for (component, index), dependence in zip(self.component_order.items(),
-                                                  self.ordered_param_dependence):
+        for (component, index), dependence in zip(self._component_order.items(),
+                                                  self._ordered_param_dependence):
 
             depend_list = [input_params[p] for p in dependence]
             params = {p: input_params[p] for p in component.input_params}
@@ -415,15 +415,16 @@ class Model(HasLogger):
                                             "%r" % comps)
             _last = len(dependence_order)
 
-        self.component_order = odict(zip(dependence_order,
-                                         (components.index(c) for c in dependence_order)))
+        self._component_order = odict(zip(dependence_order,
+                                          (components.index(c) for c in
+                                           dependence_order)))
         if self.log.getEffectiveLevel() <= logging.DEBUG:
             self.log.debug("Components will be computed in the order:")
             self.log.debug(" - %r" % dependence_order)
 
-        self.ordered_param_dependence = [[] for _ in components]
-        for component, param_dep in zip(self.component_order,
-                                        self.ordered_param_dependence):
+        self._ordered_param_dependence = [[] for _ in components]
+        for component, param_dep in zip(self._component_order,
+                                        self._ordered_param_dependence):
             for dep in dependencies.get(component, []):
                 param_dep += dep.input_params
 

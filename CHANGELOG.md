@@ -2,7 +2,7 @@
 
 ## This branch
 
-- **had to change test ch2 for some classy likes for travis pass**
+- **had to change test ch2 for some classy likes for some travis pass, but still failed so turned off classy in travis**
 - allow multiple inter-dependent theory classes
 - allow theories and likelihoods to all specify requirements and define derived products 
   with general dependencies

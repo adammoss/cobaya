@@ -17,15 +17,12 @@ import sys
 import traceback
 from time import sleep
 import numpy as np
-from copy import deepcopy
 
 # Local
-from cobaya.conventions import _external
-from cobaya.conventions import kinds, _self_name
-from cobaya.conventions import _module_path
+from cobaya.conventions import kinds, _self_name, _external, _module_path
 from cobaya.tools import get_class, get_external_function, getfullargspec
 from cobaya.log import LoggedError
-from cobaya.component import CobayaComponent, ComponentCollection
+from cobaya.component import ComponentCollection
 from cobaya.theory import Theory
 
 
@@ -63,8 +60,6 @@ class Likelihood(Theory):
         To get the derived parameters, pass a `_derived` keyword with an empty dictionary.
         """
         return None
-
-    # What you *can* implement to create your own likelihood:
 
     def marginal(self, directions=None, params_values=None):
         """

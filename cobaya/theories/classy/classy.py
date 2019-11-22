@@ -232,7 +232,7 @@ class classy(BoltzmannBase):
                     method="lensed_cl", kwargs={"lmax": self.extra_args["l_max_scalars"]})
             elif k == "Hubble":
                 self.collectors[k] = Collector(
-                    method="H",
+                    method="Hubble",
                     args=[np.atleast_1d(v["z"])],
                     args_names=["z"],
                     arg_array=0)

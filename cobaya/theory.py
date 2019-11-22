@@ -28,9 +28,8 @@ from cobaya.log import LoggedError
 from cobaya.tools import get_class_methods
 
 
-# Theory code prototype
 class Theory(CobayaComponent):
-    """Prototype of the theory class than can calculate something."""
+    """Base class theory that can calculate something."""
     # Default options for all subclasses
     class_options = {"speed": -1, "stop_at_error": False}
 

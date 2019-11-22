@@ -183,19 +183,20 @@ class Model(HasLogger):
 
     def logps(self, input_params, return_derived=True, cached=True, make_finite=False):
         # Calculate required results and returns likelihoods
-        depend_params_dict = {}
-        compute_success = True
         derived_dict = {}
+        compute_success = True
         self.provider.set_current_input_params(input_params)
         self.log.debug("Got input parameters: %r", input_params)
         n_theory = len(self.theory)
         loglikes = np.empty(len(self.likelihood))
 
-        for component, index in self.component_order.items():
-            # TODO: only call components with parameter changes?
+        for (component, index), dependence in zip(self.component_order.items(),
+                                                  self.ordered_param_dependence):
+
+            depend_list = [input_params[p] for p in dependence]
             params = {p: input_params[p] for p in component.input_params}
             compute_success = component.compute(want_derived=return_derived,
-                                                dependency_params=depend_params_dict,
+                                                dependency_params=depend_list,
                                                 cached=cached, **params)
             if not compute_success:
                 loglikes[:] = -np.inf
@@ -212,9 +213,6 @@ class Model(HasLogger):
                     derived_dict[_chi2 + _separator +
                                  component.get_name().replace(".", "_")] \
                         = -2 * loglikes[index - n_theory]
-            else:
-                # TODO: make list of actual dependencies
-                depend_params_dict.update(params)
 
         if make_finite:
             loglikes = np.nan_to_num(loglikes)
@@ -423,6 +421,12 @@ class Model(HasLogger):
             self.log.debug("Components will be computed in the order:")
             self.log.debug(" - %r" % dependence_order)
 
+        self.ordered_param_dependence = [[] for _ in components]
+        for component, param_dep in zip(self.component_order,
+                                        self.ordered_param_dependence):
+            for dep in dependencies.get(component, []):
+                param_dep += dep.input_params
+
     def _set_dependencies_and_providers(self):
         requirements = []
         dependencies = {}
@@ -526,14 +530,6 @@ class Model(HasLogger):
             else:
                 component.needs()
             component.initialize_with_provider(self.provider)
-
-    def needs(self, **needs):
-        """
-        Add new needs by passing to components that provide them
-        :param needs: needs name, value pairs
-        """
-        for k, v in needs.items():
-            self.requirement_providers[k].needs(**{k: v})
 
     def _assign_params(self, info_likelihood, info_theory=None):
         """

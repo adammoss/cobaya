@@ -111,7 +111,7 @@ class Theory(CobayaComponent):
 
             self.log.debug("Computing new state")
             state = {"params": params_values_dict,
-                     "dependency_params": dependency_params.copy(),
+                     "dependency_params": dependency_params,
                      "derived": {} if want_derived else None, "derived_extra": None}
             if self.timer:
                 self.timer.start()

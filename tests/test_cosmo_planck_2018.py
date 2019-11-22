@@ -327,10 +327,10 @@ derived_lowTE_highTTTEEE_lensingcmblikes = {
 
 # Best fit CMB-marged lensing ############################################################
 
-lik_info_lensing_cmbmarged = {"planck_2018_lensing.cmbmarged": None}
+lik_info_lensing_cmbmarged = {"planck_2018_lensing.CMBMarged": None}
 
 chi2_lensing_cmbmarged = {
-    "planck_2018_lensing.cmbmarged": 7.51, "tolerance": 0.11}
+    "planck_2018_lensing.CMBMarged": 7.51, "tolerance": 0.11}
 
 params_lensing_cmbmarged = {
     "omegabh2": 2.2219050E-02,

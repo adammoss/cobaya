@@ -121,8 +121,7 @@ class CobayaComponent(HasLogger, HasDefaults):
         """
         Final initialization after parameters, provider and needs assigned
         """
-        # TODO: just for backwards compatibility for the moment, save theory attribute
-        self.theory = provider
+        self.provider = provider
 
     def get_can_provide_methods(self):
         """

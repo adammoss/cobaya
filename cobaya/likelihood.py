@@ -55,6 +55,11 @@ class Likelihood(CobayaComponent):
                          "dependency_params": None, "last": 0}
                         for _ in range(self._n_states)]
 
+    @property
+    def theory(self):
+        # for backwards compatibility
+        return self.provider
+
     # Mandatory
     def logp(self, **params_values):
         """
@@ -169,7 +174,7 @@ class LikelihoodExternalFunction(Likelihood):
         if not self.has_derived:
             params_values.pop("_derived")
         if self.has_theory:
-            params_values["_theory"] = self.theory
+            params_values["_theory"] = self.provider
         try:
             return self.external_function(**params_values)
         except Exception as ex:

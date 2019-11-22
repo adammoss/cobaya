@@ -262,10 +262,12 @@ class _bao_prototype(_InstallableLikelihood):
         return requisites
 
     def initialize_with_provider(self, provider):
-        if "classy" in provider.model.theory:
-            raise LoggedError(
-                self.log,
-                "BAO likelihood not yet compatible with CLASS (help appreciated!)")
+        # TODO: is this needed any more?
+
+        # if "classy" in provider.model.theory:
+        #     raise LoggedError(
+        #         self.log,
+        #         "BAO likelihood not yet compatible with CLASS (help appreciated!)")
         super(_bao_prototype, self).initialize_with_provider(provider)
 
     def theory_fun(self, z, observable):
@@ -279,7 +281,8 @@ class _bao_prototype(_InstallableLikelihood):
         elif observable == "rs_over_DV":
             return np.cbrt(
                 ((1 + z) * self.theory.get_angular_diameter_distance(z)) ** 2 *
-                _c_km_s * z / self.theory.get_Hubble(z, units="km/s/Mpc")) ** (-1) * self.rs()
+                _c_km_s * z / self.theory.get_Hubble(z, units="km/s/Mpc")) ** (
+                       -1) * self.rs()
         # Comoving angular diameter distance, over sound horizon radius
         elif observable == "DM_over_rs":
             return (1 + z) * self.theory.get_angular_diameter_distance(z) / self.rs()

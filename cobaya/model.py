@@ -15,6 +15,7 @@ from collections import namedtuple, OrderedDict as odict
 from itertools import chain, permutations
 import logging
 import six
+import copy
 from copy import deepcopy
 
 # Local
@@ -106,8 +107,6 @@ class Model(HasLogger):
         info_likelihood = self._updated_info[kinds.likelihood]
         self.likelihood = LikelihoodCollection(info_likelihood, theory=self.theory,
                                                path_install=path_install, timing=timing)
-
-        components = list(self.theory.values()) + list(self.likelihood.values())
 
         # Assign input/output parameters
         self._assign_params(info_likelihood, info_theory)
@@ -411,7 +410,7 @@ class Model(HasLogger):
         comps = components[:]
         _last = 0
         while len(dependence_order) < len(components):
-            for component in comps.copy():
+            for component in copy.copy(comps):
                 if not deps.get(component):
                     dependence_order.append(component)
                     comps.remove(component)

@@ -2,8 +2,8 @@
 import numpy as np
 
 redshifts = np.linspace(0, 2.5, 40)
-# TODO, check new syntax for doing this
-model.theory["camb"].needs(H={"z": redshifts})
+
+model.theory["classy"].needs(Hubble={"z": redshifts})
 
 omega_cdm = [0.10, 0.11, 0.12, 0.13, 0.14]
 

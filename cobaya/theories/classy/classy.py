@@ -249,6 +249,7 @@ class classy(BoltzmannBase):
                     args=[np.atleast_1d(v["z"])])
             elif k in ["Pk_interpolator", "Pk_grid"]:
                 self.extra_args["output"] += " mPk"
+                v = deepcopy(v)
                 self.extra_args["P_k_max_h/Mpc"] = max(
                     v.pop("k_max"), self.extra_args.get("P_k_max_h/Mpc", 0))
                 self.add_z_for_matter_power(v.pop("z"))

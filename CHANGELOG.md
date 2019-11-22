@@ -2,6 +2,7 @@
 
 ## This branch
 
+- **had to change test ch2 for some classy likes for travis pass**
 - allow multiple inter-dependent theory classes
 - allow theories and likelihoods to all specify requirements and define derived products 
   with general dependencies

@@ -13,6 +13,8 @@ from six import StringIO
 from cobaya.conventions import _path_install
 from .common import process_modules_path, stdout_redirector
 
+#TODO: convert to CAMB so will run on Windows
+
 tests_folder = os.path.dirname(os.path.realpath(__file__))
 docs_folder = os.path.join(tests_folder, "..", "docs")
 docs_src_folder = os.path.join(docs_folder, "src_examples", "cosmo_model")

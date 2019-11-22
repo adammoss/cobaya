@@ -425,8 +425,6 @@ class Model(HasLogger):
 
     def _set_dependencies_and_providers(self):
         requirements = []
-        provide_methods = []
-        provide_params = []
         dependencies = {}
         providers = {}
 
@@ -448,8 +446,6 @@ class Model(HasLogger):
             requirements.append(require)
             methods = component.get_can_provide_methods()
             possible_derived = component.get_can_provide_params()
-            provide_methods.append(methods)
-            provide_params.append(possible_derived)
             for k in list(methods) + possible_derived:
                 providers[k] = providers.get(k, []) + [component]
 
@@ -530,6 +526,14 @@ class Model(HasLogger):
             else:
                 component.needs()
             component.initialize_with_provider(self.provider)
+
+    def needs(self, **needs):
+        """
+        Add new needs by passing to components that provide them
+        :param needs: needs name, value pairs
+        """
+        for k, v in needs.items():
+            self.requirement_providers[k].needs(**{k: v})
 
     def _assign_params(self, info_likelihood, info_theory=None):
         """

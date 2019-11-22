@@ -184,7 +184,7 @@ class Model(HasLogger):
     def logps(self, input_params, return_derived=True, cached=True, make_finite=False):
         # Calculate required theory results and returns likelihoods
         depend_params_dict = {}
-        theory_success = True
+        compute_success = True
         derived_dict = {}
         self.provider.set_current_input_params(input_params)
         self.log.debug("Got input parameters: %r", input_params)
@@ -195,26 +195,24 @@ class Model(HasLogger):
         for component, index in self.component_order.items():
             # TODO: only call components with parameter changes?
             params = {p: input_params[p] for p in component.input_params}
-            if isinstance(component, Theory):
-                theory_success = component.compute(_derived=this_derived_dict,
-                                                   dependency_params=depend_params_dict,
-                                                   cached=cached, **params)
-                if not theory_success:
-                    loglikes[:] = -np.inf
-                    self.log.debug(
-                        "Theory code computation failed. Not computing likelihood.")
-                    break
-                # TODO: make list of actual dependencies
-                depend_params_dict.update(params)
-            else:
-                loglikes[index - n_theory] = component._logp_cached(
-                    dependency_params=depend_params_dict, _derived=this_derived_dict,
-                    cached=cached, **params)
-                # TODO: should be breaking here if result is -np.inf?
+            compute_success = component.compute(_derived=this_derived_dict,
+                                                dependency_params=depend_params_dict,
+                                                cached=cached, **params)
+            if not compute_success:
+                loglikes[:] = -np.inf
+                self.log.debug(
+                    "Calculation failed, skipping rest of calculations ")
+                break
+
+            if isinstance(component, Likelihood):
+                loglikes[index - n_theory] = component.cached_logp()
                 if return_derived:
                     this_derived_dict[_chi2 + _separator +
                                       component.get_name().replace(".", "_")] \
                         = -2 * loglikes[index - n_theory]
+            else:
+                # TODO: make list of actual dependencies
+                depend_params_dict.update(params)
 
             if return_derived:
                 derived_dict.update(this_derived_dict)
@@ -225,7 +223,7 @@ class Model(HasLogger):
 
         if return_derived:
             # Turn the derived params dict into a list and return
-            if not theory_success:
+            if not compute_success:
                 derived_list = [np.nan] * len(self.output_params)
             else:
                 derived_list = [derived_dict[p] for p in self.output_params]

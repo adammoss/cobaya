@@ -474,7 +474,7 @@ class camb(BoltzmannBase):
                 "Some of the parameters passed to CAMB were not recognized: %s" % str(e))
         return False
 
-    def run_calculation(self, _derived, state, **params_values_dict):
+    def run_calculation(self, state, _derived=None, **params_values_dict):
         # Set parameters
         camb_params = self.set(params_values_dict, state)
         # Failed to set parameters but no error raised

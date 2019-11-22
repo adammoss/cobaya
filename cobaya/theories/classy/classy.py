@@ -333,7 +333,7 @@ class classy(BoltzmannBase):
         self.classy.struct_cleanup()
         self.classy.set(**args)
 
-    def run_calculation(self, _derived, state, **params_values_dict):
+    def run_calculation(self, state, _derived=None, **params_values_dict):
         # Set parameters
         self.set(params_values_dict)
         # Compute!

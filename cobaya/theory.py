@@ -19,29 +19,158 @@ code.
 """
 
 import inspect
-
+from collections import deque
 # Local
-from cobaya.conventions import _external, kinds
+from cobaya.conventions import _external, kinds, _requires
 from cobaya.component import CobayaComponent, ComponentCollection
 from cobaya.tools import get_class
 from cobaya.log import LoggedError
+from cobaya.tools import get_class_methods
 
 
 # Theory code prototype
 class Theory(CobayaComponent):
-    """Prototype of the theory class."""
+    """Prototype of the theory class than can calculate something."""
     # Default options for all subclasses
-    class_options = {"speed": -1}
+    class_options = {"speed": -1, "stop_at_error": False}
 
-    def compute(self, dependency_params=None, **parameter_values_and_derived_dict):
+    def __init__(self, info={}, name=None, timing=None, path_install=None):
+        super(Theory, self).__init__(info, name=name, timing=timing,
+                                     path_install=path_install)
+        self.provider = None  # set to Provider instance before calculations
+        # Generate cache states, to avoid recomputing
+        # TODO: size of the cache should be set by the sampler
+        self._states = deque(maxlen=3)
+
+    def get_requirements(self):
+        """
+        Get a dictionary of requirements (e.g. calculated by a another component)
+        :return: dictionary of requirements
+        """
+        return {}
+
+    def needs(self, **requirements):
+        """
+        Function to be called specifying any output products that are needed and hence
+        should be calculated by this component.
+        Requirements is a dictionary of requirement names with optional parameters for
+        each.
+        """
+        # set-set states whenever needs change
+        self._states.clear()
+
+    def get_param(self, p):
+        """
+        Interface function for likelihoods to get sampled and derived parameters.
+
+        Always use this one; don't try to access theory code attributes directly!
+        """
+        pass
+
+    def run_calculation(self, state, _derived=None, **params_values_dict):
+        """
+        Do the actual calculation and store results in state dict
+        :param state: dictionary to store results
+        :param _derived: optional of optional output parameters
+        :param params_values_dict: parameter values
+        :return: True if success, False for fail
+        """
+        return False
+
+    def compute(self, dependency_params=None, _derived=None, cached=True,
+                **params_values_dict):
         """
         Takes a dictionary of parameter values and computes the products needed by the
-        likelihood.
+        likelihood, or used the cached value if that exists for these parameters.
         If passed a keyword `derived` with an empty dictionary, it populates it with the
         value of the derived parameters for the present set of sampled and fixed parameter
         values.
         """
+        params_values_dict = params_values_dict.copy()
+        self.log.debug("Got parameters %r", params_values_dict)
+
+        for set_param in getattr(self, _requires, []):
+            # mess handling optional parameters that may be computed elsewhere, eg. YHe
+            params_values_dict[set_param] = self.provider.get_param(set_param)
+
+        try:
+            if not cached:
+                raise StopIteration
+
+            # are the parameter values there already?
+            state = next(state for state in self._states
+                         if state["params"] == params_values_dict and
+                         state["dependency_params"] == dependency_params)
+        except StopIteration:
+
+            self.log.debug("Computing new state")
+            state = {"params": params_values_dict,
+                     "dependency_params": dependency_params.copy(),
+                     "derived": None, "derived_extra": None}
+            if self.timer:
+                self.timer.start()
+            try:
+                if not self.run_calculation(state, _derived, **params_values_dict):
+                    return False
+            except LoggedError:
+                raise
+            except Exception as e:
+                if self.stop_at_error:
+                    raise LoggedError(self.log, "Error at evaluation: %r", e)
+                else:
+                    raise
+
+            if self.timer:
+                self.timer.increment(self.log)
+        else:
+            # Get (pre-computed) derived parameters
+            if _derived == {}:
+                _derived.update(state["derived"] or {})
+            self.log.debug("Re-using computed results")
+            self._states.remove(state)
+
+        # make this one the current one
+        self._states.appendleft(state)
+        self._current_state = state
+        return True
+
+    def initialize_with_params(self):
+        """
+        Additional initialization after requirements called and input_params and
+        output_params hjve been assigned (but provider and needs assigned).
+        """
         pass
+
+    def initialize_with_provider(self, provider):
+        """
+        Final initialization after parameters, provider and needs assigned
+        """
+        self.provider = provider
+
+    def get_can_provide_methods(self):
+        """
+        Get a dictionary of quantities X that can be retrieved using get_X methods.
+
+        :return: dictionary of the form {X: get_X method}
+        """
+        return get_class_methods(self.__class__, not_base=Theory)
+
+    def get_can_provide_params(self):
+        """
+        Get a list of derived parameters that this component can calculate.
+
+        :return: list of parameter names
+        """
+        return []
+
+    def get_allow_agnostic(self):
+        """
+        Whether it is allowed to pass all unassigned input parameters to this component
+        (True) or whether parameters must be explicitly specified.
+
+        :return: True or False
+        """
+        return False
 
 
 class TheoryCollection(ComponentCollection):

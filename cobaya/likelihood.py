@@ -26,22 +26,22 @@ from cobaya.conventions import _module_path
 from cobaya.tools import get_class, get_external_function, getfullargspec
 from cobaya.log import LoggedError
 from cobaya.component import CobayaComponent, ComponentCollection
+from cobaya.theory import Theory
 
 
-class Likelihood(CobayaComponent):
-    """Likelihood base class."""
-
-    class_options = {"speed": -1, "stop_at_error": False}
+class Likelihood(Theory):
+    """Likelihood base class. Extends general theory calculation by adding likelihoods."""
 
     # Generic initialization -- do not touch
     def __init__(self, info={}, name=None, timing=None, path_install=None,
                  standalone=True):
-        name = name or self.get_qualified_class_name()
         if standalone:
             # TODO: would probably be more natural if defaults were already read here
+            # TODO: mode standalone support to Theory
             default_info = self.get_defaults()
             if default_info:
                 if kinds.likelihood in default_info:
+                    name = name or self.get_qualified_class_name()
                     default_info = default_info[kinds.likelihood][
                         name if _self_name not in default_info[kinds.likelihood]
                         else _self_name]
@@ -49,11 +49,6 @@ class Likelihood(CobayaComponent):
                 info = default_info
         super(Likelihood, self).__init__(info, name=name, timing=timing,
                                          path_install=path_install)
-        # States, to avoid recomputing
-        self._n_states = 3
-        self._states = [{"params": None, "logp": None, "_derived": None,
-                         "dependency_params": None, "last": 0}
-                        for _ in range(self._n_states)]
 
     @property
     def theory(self):
@@ -81,60 +76,27 @@ class Likelihood(CobayaComponent):
         """
         raise LoggedError(self.log, "Exact marginal likelihood not defined.")
 
-    # Other general methods
+    def run_calculation(self, state, _derived=None, **params_values_dict):
+        """
+        Calculates the likelihood and any derived parameters or needs.
 
-    def _logp_cached(self, dependency_params=None, cached=True, _derived=None,
-                     **params_values):
         """
-        Wrapper for the `logp` method that caches logp's and derived params.
-        If the theory products have been re-computed, re-computes the likelihood anyway.
-        """
-        params_values = deepcopy(params_values)
-        self.log.debug("Got parameters %r", params_values)
-        lasts = [self._states[i]["last"] for i in range(self._n_states)]
         try:
-            if not cached:
-                raise StopIteration
-            # Are the parameter values there already?
-            i_state = next(i for i in range(self._n_states)
-                           if self._states[i]["params"] == params_values)
-            # StopIteration not raised, so state exists, but maybe the theory params have
-            # changed? In that case, I would still have to re-compute the likelihood
-            if self._states[i_state]["dependency_params"] != dependency_params:
-                self.log.debug("Recomputing logp because dependency params changed.")
-                raise StopIteration
-            if _derived is not None:
-                _derived.update(self._states[i_state]["derived"] or {})
-            self.log.debug("Re-using computed results.")
-        except StopIteration:
-            # update the (first) oldest one and compute
-            i_state = lasts.index(min(lasts))
-            self._states[i_state]["params"] = params_values
-            self._states[i_state]["dependency_params"] = deepcopy(dependency_params)
-            if self.timer:
-                self.timer.start()
-            try:
-                self._states[i_state]["logp"] = self.logp(_derived=_derived,
-                                                          **params_values)
-                if self.timer:
-                    self.timer.increment()
-            except Exception as e:
-                if self.stop_at_error:
-                    raise LoggedError(self.log, "Error at evaluation: %r", e)
-                else:
-                    self.log.debug(
-                        "Ignored error at evaluation and assigned 0 likelihood "
-                        "(set 'stop_at_error: True' as an option for this likelihood "
-                        "to stop here). Error message: %r", e)
-                    self._states[i_state]["logp"] = -np.inf
-            self._states[i_state]["derived"] = deepcopy(_derived)
-        # make this one the current one by decreasing the antiquity of the rest
-        for i in range(self._n_states):
-            self._states[i]["last"] -= max(lasts)
-        self._states[i_state]["last"] = 1
-        self.log.debug("Evaluated to logp=%g with derived %r",
-                       self._states[i_state]["logp"], self._states[i_state]["derived"])
-        return self._states[i_state]["logp"]
+            state["logp"] = self.logp(_derived=_derived, **params_values_dict)
+        except Exception as e:
+            if not self.stop_at_error:
+                state["logp"] = -np.inf
+                self.log.debug(
+                    "Ignored error at evaluation and assigned 0 likelihood "
+                    "(set 'stop_at_error: True' as an option for this likelihood "
+                    "to stop here). Error message: %r", e)
+                return False
+            else:
+                raise
+        return True
+
+    def cached_logp(self):
+        return self._current_state["logp"]
 
     def wait(self):
         if self.delay:
@@ -144,7 +106,8 @@ class Likelihood(CobayaComponent):
 
 class LikelihoodExternalFunction(Likelihood):
     def __init__(self, info, name, timing=None):
-        CobayaComponent.__init__(self, info, name=name, timing=timing)
+        Theory.__init__(self, info, name=name, timing=timing)
+
         # Store the external function and its arguments
         self.external_function = get_external_function(info[_external], name=name)
         argspec = getfullargspec(self.external_function)
@@ -160,10 +123,6 @@ class LikelihoodExternalFunction(Likelihood):
             theory_kw_index = argspec.args[-len(argspec.defaults):].index("_theory")
             self._needs = argspec.defaults[theory_kw_index]
 
-        # States, to avoid recomputing
-        self._n_states = 3
-        self._states = [{"params": None, "logp": None, "derived": None, "last": 0}
-                        for _ in range(self._n_states)]
         self.log.info("Initialized external likelihood.")
 
     def get_requirements(self):

@@ -26,9 +26,7 @@ H_units_conv_factor = {"1/Mpc": 1, "km/s/Mpc": _c_km_s}
 class BoltzmannBase(Theory):
 
     def initialize(self):
-        # Generate cache states, to avoid recomputing
-        # TODO: size of the cache should be set by the sampler
-        self._states = deque(maxlen=3)
+
         # Dict of named tuples to collect requirements and computation methods
         self.collectors = {}
         # Additional input parameters to pass to CAMB, and attributes to set_ manually
@@ -77,8 +75,8 @@ class BoltzmannBase(Theory):
         - **Other derived parameters** that are not included in the input but whose
           value the likelihood may need.
         """
-        # set-set states whenever needs change
-        self._states.clear()
+
+        super(BoltzmannBase, self).needs(**requirements)
 
         self._needs = self._needs or {p: None for p in self.output_params}
         # TO BE DEPRECATED IN >=1.3
@@ -151,60 +149,11 @@ class BoltzmannBase(Theory):
             else:
                 raise LoggedError(self.log, "Unknown required product: '%s'.", k)
 
-    def compute(self, dependency_params=None, _derived=None, cached=True,
-                **params_values_dict):
-
-        for set_param in getattr(self, _requires, []):
-            # mess handling optional parameters that may be computed elsewhere, eg. YHe
-            params_values_dict[set_param] = self.provider.get_param(set_param)
-        if dependency_params:
-            dependency_dict = dependency_params.copy()
-            dependency_dict.update(params_values_dict)
-        else:
-            dependency_dict = params_values_dict
-
-        try:
-            if not cached:
-                raise StopIteration
-
-            # are the parameter values there already?
-            state = next(state for state in self._states
-                         if state["params"] == dependency_dict)
-        except StopIteration:
-
-            self.log.debug("Computing new state")
-            state = {"params": dependency_dict, "derived": None, "derived_extra": None}
-            if self.timer:
-                self.timer.start()
-            if not self.run_calculation(_derived, state, **params_values_dict):
-                return False
-            if self.timer:
-                self.timer.increment(self.log)
-        else:
-            # Get (pre-computed) derived parameters
-            if _derived == {}:
-                _derived.update(state["derived"] or {})
-            self.log.debug("Re-using computed results")
-            self._states.remove(state)
-
-        # make this one the current one
-        self._states.appendleft(state)
-        self._current_state = state
-        return True
-
     def requested(self):
         """
         Returns the full set of requested cosmological products and parameters.
         """
         return self._needs
-
-    def get_param(self, p):
-        """
-        Interface function for likelihoods to get sampled and derived parameters.
-
-        Always use this one; don't try to access theory code attributes directly!
-        """
-        pass
 
     def get_Cl(self, ell_factor=False, units="muK2"):
         r"""

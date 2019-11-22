@@ -57,7 +57,6 @@ class CobayaComponent(HasLogger, HasDefaults):
                  initialize=True):
         self._name = name or self.get_qualified_class_name()
         self.path_install = path_install
-        self.provider = None  # set to Provider instance before calculations
         for k, value in self.class_options.items():
             setattr(self, k, value)
         # set attributes from the info (usually from yaml file)
@@ -88,66 +87,12 @@ class CobayaComponent(HasLogger, HasDefaults):
         """Finalizes the class, if something needs to be cleaned up."""
         pass
 
-    def get_requirements(self):
-        """
-        Get a dictionary of requirements (e.g. calculated by a another component)
-        :return: dictionary of requirements
-        """
-        return {}
-
-    def needs(self, **requirements):
-        """
-        Function to be called specifying any output products that are needed and hence
-        should be calculated by this component.
-        Requirements is a dictionary of requirement names with optional parameters for
-        each.
-        """
-        pass
-
     def initialize(self):
         """
         Initializes the class (before getting requirements and before input_params,
         output_params and provider assigned).
         """
         pass
-
-    def initialize_with_params(self):
-        """
-        Additional initialization after requirements called and input_params and
-        output_params hjve been assigned (but provider and needs assigned).
-        """
-        pass
-
-    def initialize_with_provider(self, provider):
-        """
-        Final initialization after parameters, provider and needs assigned
-        """
-        self.provider = provider
-
-    def get_can_provide_methods(self):
-        """
-        Get a dictionary of quantities X that can be retrieved using get_X methods.
-
-        :return: dictionary of the form {X: get_X method}
-        """
-        return get_class_methods(self.__class__, not_base=CobayaComponent)
-
-    def get_can_provide_params(self):
-        """
-        Get a list of derived parameters that this component can calculate.
-
-        :return: list of parameter names
-        """
-        return []
-
-    def get_allow_agnostic(self):
-        """
-        Whether it is allowed to pass all unassigned input parameters to this component
-        (True) or whether parameters must be explicitly specified.
-
-        :return: True or False
-        """
-        return False
 
     def __exit__(self, exception_type, exception_value, traceback):
         if self.timer:

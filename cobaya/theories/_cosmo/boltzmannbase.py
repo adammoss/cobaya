@@ -12,6 +12,7 @@ import numpy as np
 from scipy.interpolate import RectBivariateSpline
 from six import string_types
 from itertools import chain
+from collections import deque
 
 # Local
 from cobaya.theory import Theory
@@ -25,25 +26,20 @@ H_units_conv_factor = {"1/Mpc": 1, "km/s/Mpc": _c_km_s}
 class BoltzmannBase(Theory):
 
     def initialize(self):
-        # Generate states, to avoid recomputing
-        self._n_states = 3
+        # Generate cache states, to avoid recomputing
+        # TODO: size of the cache should be set by the sampler
+        self._states = deque(maxlen=3)
         # Dict of named tuples to collect requirements and computation methods
         self.collectors = {}
         # Additional input parameters to pass to CAMB, and attributes to set_ manually
         self.extra_args = deepcopy_where_possible(self.extra_args) or {}
         self._needs = None
-        self._clear_cache()
 
     def get_requirements(self):
         return {p: None for p in getattr(self, _requires, [])}
 
     def get_allow_agnostic(self):
         return True
-
-    def _clear_cache(self):
-        self._states = [
-            {"params": None, "derived": None, "derived_extra": None, "last": 0}
-            for _ in range(self._n_states)]
 
     def needs(self, **requirements):
         r"""
@@ -82,7 +78,7 @@ class BoltzmannBase(Theory):
           value the likelihood may need.
         """
         # set-set states whenever needs change
-        self._clear_cache()
+        self._states.clear()
 
         self._needs = self._needs or {p: None for p in self.output_params}
         # TO BE DEPRECATED IN >=1.3
@@ -157,52 +153,44 @@ class BoltzmannBase(Theory):
 
     def compute(self, dependency_params=None, _derived=None, cached=True,
                 **params_values_dict):
-        lasts = [self._states[i]["last"] for i in range(self._n_states)]
+
         for set_param in getattr(self, _requires, []):
             # mess handling optional parameters that may be computed elsewhere, eg. YHe
-            params_values_dict[set_param] = self.theory.get_param(set_param)
+            params_values_dict[set_param] = self.provider.get_param(set_param)
         if dependency_params:
             dependency_dict = dependency_params.copy()
             dependency_dict.update(params_values_dict)
         else:
             dependency_dict = params_values_dict
+
         try:
             if not cached:
                 raise StopIteration
 
             # are the parameter values there already?
-            i_state = next(i for i in range(self._n_states)
-                           if self._states[i]["params"] == dependency_dict)
-            # has any new product been requested?
-            for product in self.collectors:
-                next(k for k in self._states[i_state] if k == product)
-            reused_state = True
-            # Get (pre-computed) derived parameters
-            if _derived == {}:
-                _derived.update(self._states[i_state]["derived"] or {})
-            self.log.debug("Re-using computed results (state %d)", i_state)
+            state = next(state for state in self._states
+                         if state["params"] == dependency_dict)
         except StopIteration:
-            reused_state = False
-            # update the (first) oldest one and compute
-            i_state = lasts.index(min(lasts))
-            self.log.debug("Computing (state %d)", i_state)
-            # Store them, to use them later to identify the state
-            # TODO: changed the _states assignment logic slightly here, check
-            # are we cacheing run_calculation fails?
-            self._states[i_state]["params"] = None
+
+            self.log.debug("Computing new state")
+            state = {"params": dependency_dict, "derived": None, "derived_extra": None}
             if self.timer:
                 self.timer.start()
-            if not self.run_calculation(_derived, i_state, **params_values_dict):
-                return 0
+            if not self.run_calculation(_derived, state, **params_values_dict):
+                return False
             if self.timer:
                 self.timer.increment(self.log)
-            self._states[i_state]["params"] = dependency_dict
+        else:
+            # Get (pre-computed) derived parameters
+            if _derived == {}:
+                _derived.update(state["derived"] or {})
+            self.log.debug("Re-using computed results")
+            self._states.remove(state)
 
-        # make this one the current one by decreasing the antiquity of the rest
-        for i in range(self._n_states):
-            self._states[i]["last"] -= max(lasts)
-        self._states[i_state]["last"] = 1
-        return 1 if reused_state else 2
+        # make this one the current one
+        self._states.appendleft(state)
+        self._current_state = state
+        return True
 
     def requested(self):
         """
@@ -266,8 +254,7 @@ class BoltzmannBase(Theory):
         """
         return self._get_z_dependent("comoving_radial_distance", z)
 
-    def get_Pk_grid(self, var_pair=("delta_tot", "delta_tot"), nonlinear=True,
-                    _state=None):
+    def get_Pk_grid(self, var_pair=("delta_tot", "delta_tot"), nonlinear=True):
         """
         Get  matter power spectrum, e.g. suitable for splining.
         Returned arrays may be bigger or more densely sampled than requested, but will
@@ -279,11 +266,10 @@ class BoltzmannBase(Theory):
         :return: k, z, PK, where k and z are arrays,
                  and PK[i,j] is the value at z[i], k[j]
         """
-        current_state = _state or self.current_state()
         try:
-            return current_state[("Pk_grid", bool(nonlinear)) + tuple(var_pair)]
+            return self._current_state[("Pk_grid", bool(nonlinear)) + tuple(var_pair)]
         except KeyError:
-            if ("Pk_grid", False) + tuple(var_pair) in current_state:
+            if ("Pk_grid", False) + tuple(var_pair) in self._current_state:
                 raise LoggedError(self.log,
                                   "Getting non-linear matter power but nonlinear "
                                   "not specified in requirements")
@@ -301,13 +287,11 @@ class BoltzmannBase(Theory):
                             extrap_kmax
         :return: :class:`PowerSpectrumInterpolator` instance.
         """
-        current_state = self.current_state()
         nonlinear = bool(nonlinear)
         key = ("Pk_interpolator", nonlinear, extrap_kmax) + tuple(var_pair)
-        if key in current_state:
-            return current_state[key]
-        k, z, pk = self.get_Pk_grid(var_pair=var_pair, nonlinear=nonlinear,
-                                    _state=current_state)
+        if key in self._current_state:
+            return self._current_state[key]
+        k, z, pk = self.get_Pk_grid(var_pair=var_pair, nonlinear=nonlinear)
         log_p = np.all(pk > 0)
         if log_p:
             pk = np.log(pk)
@@ -316,7 +300,7 @@ class BoltzmannBase(Theory):
                               'Cannot do log extrapolation with negative pk for %s, %s'
                               % var_pair)
         result = PowerSpectrumInterpolator(z, k, pk, logP=log_p, extrap_kmax=extrap_kmax)
-        current_state[key] = result
+        self._current_state[key] = result
         return result
 
     def get_source_Cl(self):
@@ -346,10 +330,6 @@ class BoltzmannBase(Theory):
         """
         from cobaya.cosmo_input import get_best_covmat
         return get_best_covmat(self.path_install, params_info, likes_info)
-
-    def current_state(self):
-        lasts = [self._states[i]["last"] for i in range(self._n_states)]
-        return self._states[lasts.index(max(lasts))]
 
 
 class PowerSpectrumInterpolator(RectBivariateSpline):

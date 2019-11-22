@@ -18,13 +18,13 @@ code.
 
 """
 
-# Python 2/3 compatibility
-from __future__ import division
+import inspect
 
 # Local
 from cobaya.conventions import _external, kinds
 from cobaya.component import CobayaComponent, ComponentCollection
 from cobaya.tools import get_class
+from cobaya.log import LoggedError
 
 
 # Theory code prototype
@@ -61,6 +61,10 @@ class TheoryCollection(ComponentCollection):
                 else:
                     if _external in info:
                         theory_class = info[_external]
+                        if not inspect.isclass(theory_class) or \
+                                not issubclass(theory_class, Theory):
+                            raise LoggedError(self.log,
+                                              "Theory %s is not a Theory subclass", name)
                     else:
                         theory_class = get_class(name, kind=kinds.theory)
                     self[name] = theory_class(info, path_install=path_install,

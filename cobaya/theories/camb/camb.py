@@ -399,7 +399,7 @@ class camb(BoltzmannBase):
             return self.planck_to_camb.get(p, p)
         return p
 
-    def set(self, params_values_dict, i_state):
+    def set(self, params_values_dict, state):
         # Prepare parameters to be passed: this-iteration + extra
         args = {self.translate_param(p): v for p, v in params_values_dict.items()}
         # Generate and save
@@ -452,8 +452,6 @@ class camb(BoltzmannBase):
                 self._base_params = params
             else:
                 args.update(self._reduced_extra_args)
-            # TODO: Not used?
-            # self._states[i_state]["set_args"] = deepcopy(args)
             return self.camb.set_params(self._base_params.copy(), **args)
         except self.camb.baseconfig.CAMBParamRangeError:
             if self.stop_at_error:
@@ -468,7 +466,7 @@ class camb(BoltzmannBase):
                     "Error setting parameters (see traceback below)! "
                     "Parameters sent to CAMB: %r and %r.\n"
                     "To ignore this kind of errors, make 'stop_at_error: False'.",
-                    dict(self._states[i_state]["params"]), dict(self.extra_args))
+                    dict(state["params"]), dict(self.extra_args))
                 raise
         except self.camb.baseconfig.CAMBUnknownArgumentError as e:
             raise LoggedError(
@@ -476,9 +474,9 @@ class camb(BoltzmannBase):
                 "Some of the parameters passed to CAMB were not recognized: %s" % str(e))
         return False
 
-    def run_calculation(self, _derived, i_state, **params_values_dict):
+    def run_calculation(self, _derived, state, **params_values_dict):
         # Set parameters
-        camb_params = self.set(params_values_dict, i_state)
+        camb_params = self.set(params_values_dict, state)
         # Failed to set parameters but no error raised
         # (e.g. out of computationally feasible range): lik=0
         if not camb_params:
@@ -492,17 +490,17 @@ class camb(BoltzmannBase):
                 results = None
             for product, collector in self.collectors.items():
                 if collector:
-                    self._states[i_state][product] = \
+                    state[product] = \
                         collector.method(results, *collector.args, **collector.kwargs)
                 else:
-                    self._states[i_state][product] = results
+                    state[product] = results
         except self.camb.baseconfig.CAMBError as e:
             if self.stop_at_error:
                 self.log.error(
                     "Computation error (see traceback below)! "
                     "Parameters sent to CAMB: %r and %r.\n"
                     "To ignore this kind of errors, make 'stop_at_error: False'.",
-                    dict(self._states[i_state]["params"]), dict(self.extra_args))
+                    dict(state["params"]), dict(self.extra_args))
                 raise
             else:
                 # Assumed to be a "parameter out of range" error.
@@ -515,9 +513,9 @@ class camb(BoltzmannBase):
                                     results.get_derived_params() if results else None)
         if _derived == {}:
             _derived.update(self._get_derived_all(intermediates))
-            self._states[i_state]["derived"] = _derived.copy()
+            state["derived"] = _derived.copy()
         # Prepare necessary extra derived parameters
-        self._states[i_state]["derived_extra"] = {
+        state["derived_extra"] = {
             p: self._get_derived(p, intermediates) for p in self.derived_extra}
         return True
 
@@ -557,29 +555,28 @@ class camb(BoltzmannBase):
         return derived
 
     def get_param(self, p):
-        current_state = self.current_state()
+        # TODO: if this wold work for classy, move to base
         translated = self.translate_param(p)
         for pool in ["params", "derived", "derived_extra"]:
-            value = (current_state[pool] or {}).get(translated, None)
+            value = (self._current_state[pool] or {}).get(translated, None)
             if value is not None:
                 return deepcopy(value)
             if p != translated:
                 # allow both translated and not
-                value = (current_state[pool] or {}).get(p, None)
+                value = (self._current_state[pool] or {}).get(p, None)
                 if value is not None:
                     return deepcopy(value)
 
         raise LoggedError(self.log, "Parameter not known: '%s'", p)
 
     def get_Cl(self, ell_factor=False, units="muK2"):
-        current_state = self.current_state()
+        current_state = self._current_state
         # get C_l^XX from the cosmological code
         try:
             cl_camb = deepcopy(current_state["Cl"]["total"])
         except:
-            raise LoggedError(
-                self.log,
-                "No Cl's were computed. Are you sure that you have requested them?")
+            raise LoggedError(self.log, "No Cl's were computed. Are you sure that you "
+                                        "have requested them?")
         mapping = {"tt": 0, "ee": 1, "bb": 2, "te": 3}
         cls = {"ell": np.arange(cl_camb.shape[0])}
         cls.update({sp: cl_camb[:, i] for sp, i in mapping.items()})
@@ -611,16 +608,15 @@ class camb(BoltzmannBase):
         else:
             computed_redshifts = self.collectors[quantity].kwargs["z"]
             i_kwarg_z = np.searchsorted(computed_redshifts, np.atleast_1d(z))
-        return np.array(deepcopy(self.current_state()[quantity]))[i_kwarg_z]
+        return np.array(deepcopy(self._current_state[quantity]))[i_kwarg_z]
 
     def get_fsigma8(self, z):
         return self._get_z_dependent("fsigma8", z)
 
     def get_source_Cl(self):
-        current_state = self.current_state()
         # get C_l^XX from the cosmological code
         try:
-            cls = deepcopy(current_state["source_Cl"])
+            cls = deepcopy(self._current_state["source_Cl"])
         except:
             raise LoggedError(
                 self.log, "No source Cl's were computed. "
@@ -641,7 +637,7 @@ class camb(BoltzmannBase):
         :return: CAMB's `CAMBdata <https://camb.readthedocs.io/en/latest/results.html>`_
                  result instance for the current parameters
         """
-        return self.current_state()['CAMBdata']
+        return self._current_state['CAMBdata']
 
     def get_can_provide_params(self):
         # possible derived parameters for derived_extra, excluding things that are

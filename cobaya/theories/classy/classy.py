@@ -333,7 +333,7 @@ class classy(BoltzmannBase):
         self.classy.struct_cleanup()
         self.classy.set(**args)
 
-    def run_calculation(self, _derived, i_state, **params_values_dict):
+    def run_calculation(self, _derived, state, **params_values_dict):
         # Set parameters
         self.set(params_values_dict)
         # Compute!
@@ -346,7 +346,7 @@ class classy(BoltzmannBase):
                     "Computation error (see traceback below)! "
                     "Parameters sent to CLASS: %r and %r.\n"
                     "To ignore this kind of errors, make 'stop_at_error: False'.",
-                    self._states[i_state]["params"], dict(self.extra_args))
+                    state["params"], dict(self.extra_args))
                 raise
             else:
                 self.log.debug("Computation of cosmological products failed. "
@@ -358,7 +358,7 @@ class classy(BoltzmannBase):
             self.log.error("Serious error setting parameters or computing results. "
                            "The parameters passed were %r and %r. "
                            "See original CLASS's error traceback below.\n",
-                           self._states[i_state]["params"], self.extra_args)
+                           state["params"], self.extra_args)
             raise  # No LoggedError, so that CLASS traceback gets printed
         # Gather products
         for product, collector in self.collectors.items():
@@ -368,35 +368,34 @@ class classy(BoltzmannBase):
             method = getattr(self.classy, collector.method)
             arg_array = self.collectors[product].arg_array
             if arg_array is None:
-                self._states[i_state][product] = method(
+                state[product] = method(
                     *self.collectors[product].args, **self.collectors[product].kwargs)
             elif isinstance(arg_array, Number):
-                self._states[i_state][product] = np.zeros(
+                state[product] = np.zeros(
                     len(self.collectors[product].args[arg_array]))
                 for i, v in enumerate(self.collectors[product].args[arg_array]):
                     args = (list(self.collectors[product].args[:arg_array]) + [v] +
                             list(self.collectors[product].args[arg_array + 1:]))
-                    self._states[i_state][product][i] = method(
+                    state[product][i] = method(
                         *args, **self.collectors[product].kwargs)
             elif arg_array in self.collectors[product].kwargs:
                 value = np.atleast_1d(self.collectors[product].kwargs[arg_array])
-                self._states[i_state][product] = np.zeros(value.shape)
+                state[product] = np.zeros(value.shape)
                 for i, v in enumerate(value):
                     kwargs = deepcopy(self.collectors[product].kwargs)
                     kwargs[arg_array] = v
-                    self._states[i_state][product][i] = method(
+                    state[product][i] = method(
                         *self.collectors[product].args, **kwargs)
             if collector.post:
-                self._states[i_state][product] = collector.post(
-                    *self._states[i_state][product])
+                state[product] = collector.post(state[product])
         # Prepare derived parameters
         d, d_extra = self._get_derived_all(derived_requested=(_derived == {}))
         if _derived == {}:
             _derived.update(d)
-        self._states[i_state]["derived"] = odict(
+        state["derived"] = odict(
             (p, (_derived or {}).get(p)) for p in self.output_params)
         # Prepare necessary extra derived parameters
-        self._states[i_state]["derived_extra"] = deepcopy(d_extra)
+        state["derived_extra"] = deepcopy(d_extra)
         return True
 
     def _get_derived_all(self, derived_requested=True):
@@ -435,18 +434,16 @@ class classy(BoltzmannBase):
         return derived, derived_extra
 
     def get_param(self, p):
-        current_state = self.current_state()
         for pool in ["params", "derived", "derived_extra"]:
-            value = deepcopy(
-                current_state[pool].get(self.translate_param(p, force=True), None))
+            value = self._current_state[pool].get(self.translate_param(p, force=True),
+                                                  None)
             if value is not None:
-                return value
+                return deepcopy(value)
         raise LoggedError(self.log, "Parameter not known: '%s'", p)
 
     def get_Cl(self, ell_factor=False, units="muK2"):
-        current_state = self.current_state()
         try:
-            cls = deepcopy(current_state["Cl"])
+            cls = deepcopy(self._current_state["Cl"])
         except:
             raise LoggedError(
                 self.log,
@@ -479,7 +476,7 @@ class classy(BoltzmannBase):
                 self.collectors[quantity].args_names.index("z")]
         i_kwarg_z = np.concatenate(
             [np.where(computed_redshifts == zi)[0] for zi in np.atleast_1d(z)])
-        values = np.array(deepcopy(self.current_state()[quantity]))
+        values = np.array(deepcopy(self._current_state[quantity]))
         if quantity == "comoving_radial_distance":
             values = values[0]
         return values[i_kwarg_z]
@@ -490,7 +487,7 @@ class classy(BoltzmannBase):
     def get_can_provide_params(self):
         # TODO: check with get_param OK with both variants
         names = ['Omega_Lambda', 'Omega_cdm', 'Omega_b', 'Omega_m', 'rs_drag', 'z_reio',
-                 'YHe', 'Omega_k', 'age']
+                 'YHe', 'Omega_k', 'age', 'sigma8']
 
         if self.use_planck_names:
             for name, map in self.planck_to_classy.items():

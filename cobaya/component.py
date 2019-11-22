@@ -57,6 +57,7 @@ class CobayaComponent(HasLogger, HasDefaults):
                  initialize=True):
         self._name = name or self.get_qualified_class_name()
         self.path_install = path_install
+        self.provider = None  # set to Provider instance before calculations
         for k, value in self.class_options.items():
             setattr(self, k, value)
         # set attributes from the info (usually from yaml file)

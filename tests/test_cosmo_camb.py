@@ -54,8 +54,8 @@ def test_CAMBdata(modules):
     info = {
         'params': params,
         'likelihood': {'test_likelihood': test_likelihood},
-        'theory': {'camb': {'stop_at_error': True}}
-    }
+        'theory': {'camb': {'stop_at_error': True}},
+        'modules': process_modules_path(modules)}
 
     model = get_model(info)
     assert np.isclose(model.loglike({})[0], 14165.63, rtol=1e-4), \

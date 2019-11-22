@@ -263,7 +263,7 @@ chi2_lowTE_highTTTEEE_lensingcmblikes = {
     "planck_2018_highl_plik.TTTEEE": 2344.93, "planck_2018_lensing.native": 8.87,
     "tolerance": 0.11}
 
-chi2_planck_2018_plikHM_highTTTEEE_lite = 584.64
+chi2_planck_2018_plikHM_highTTTEEE_lite = 584.65
 
 params_lowTE_highTTTEEE_lite_lensingcmblikes = {
     # Sampled

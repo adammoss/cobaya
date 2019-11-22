@@ -487,6 +487,17 @@ class classy(BoltzmannBase):
     def close(self):
         self.classy.struct_cleanup()
 
+    def get_can_provide_params(self):
+        # TODO: check with get_param OK with both variants
+        names = ['Omega_Lambda', 'Omega_cdm', 'Omega_b', 'Omega_m', 'rs_drag', 'z_reio',
+                 'YHe', 'Omega_k', 'age']
+
+        if self.use_planck_names:
+            for name, map in self.planck_to_classy.items():
+                if map in names:
+                    names.append(name)
+        return names
+
     # Installation routines
 
     @classmethod
@@ -530,17 +541,3 @@ class classy(BoltzmannBase):
             log.error("Compilation failed!")
             return False
         return True
-
-    def get_can_provide_params(self):
-        # TODO: update (possible issue with that "force" option)
-        names = ['Omega_Lambda', 'Omega_cdm', 'Omega_b', 'Omega_m', 'rs_drag', 'z_reio',
-                 'YHe', 'Omega_k']
-
-        if self.use_planck_names:
-            removes = []
-            for name, map in self.planck_to_classy.items():
-                if map in names:
-                    names.append(name)
-                    removes.append(map)
-            return [name for name in names if name not in removes]
-        return names

@@ -558,11 +558,17 @@ class camb(BoltzmannBase):
 
     def get_param(self, p):
         current_state = self.current_state()
+        translated = self.translate_param(p)
         for pool in ["params", "derived", "derived_extra"]:
-            value = deepcopy(
-                (current_state[pool] or {}).get(self.translate_param(p), None))
+            value = (current_state[pool] or {}).get(translated, None)
             if value is not None:
-                return value
+                return deepcopy(value)
+            if p != translated:
+                # allow both translated and not
+                value = (current_state[pool] or {}).get(p, None)
+                if value is not None:
+                    return deepcopy(value)
+
         raise LoggedError(self.log, "Parameter not known: '%s'", p)
 
     def get_Cl(self, ell_factor=False, units="muK2"):
@@ -648,16 +654,13 @@ class camb(BoltzmannBase):
             if tp is ctypes.c_double and 'max_eta_k' not in f \
                     and f not in ['Alens', 'num_nu_massless']:
                 fields.append(f)
-        fields += ['omega_de']  # only parameter from CAMBdata
+        fields += ['omega_de', 'sigma8']  # only parameters from CAMBdata
         properties = get_properties(self.camb.CAMBparams)
         names = self.camb.model.derived_names + properties + fields + params_derived
         if self.use_planck_names:
-            removes = []
             for name, mapped in self.planck_to_camb.items():
                 if mapped in names:
                     names.append(name)
-                    removes.append(mapped)
-            return [name for name in names if name not in removes]
 
         return names
 

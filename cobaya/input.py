@@ -269,13 +269,13 @@ def merge_default_params_info(defaults):
         for p, info in (params or {}).items():
             # if already there, check consistency
             if p in defaults_merged:
-                log.debug("Parameter '%s' multiply defined.", p)
                 if info != defaults_merged[p]:
                     raise LoggedError(
                         log, "Parameter '%s' multiply defined, but inconsistent info: "
                              "For likelihood '%s' is '%r', but for some other likelihood"
                              " it was '%r'. Check your defaults!",
                         p, lik, info, defaults_merged[p])
+                log.debug("Parameter '%s' is multiply defined but consistent.", p)
             defaults_merged[p] = info
     return defaults_merged
 

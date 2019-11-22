@@ -13,8 +13,6 @@ from six import StringIO
 from cobaya.conventions import _path_install
 from .common import process_modules_path, stdout_redirector
 
-#TODO: convert to CAMB so will run on Windows
-
 tests_folder = os.path.dirname(os.path.realpath(__file__))
 docs_folder = os.path.join(tests_folder, "..", "docs")
 docs_src_folder = os.path.join(docs_folder, "src_examples", "cosmo_model")
@@ -54,7 +52,8 @@ def test_cosmo_docs_model_classy(modules):
         # Instead, let's just check that no error is raised
         for filename in ["4.py", "5.py"]:
             try:
-                exec(open(os.path.join(docs_src_folder, filename)).read(), globals_example)
+                exec(open(os.path.join(docs_src_folder, filename)).read(),
+                     globals_example)
             except:
                 assert False, "File %s failed." % filename
     #        if test_figs:

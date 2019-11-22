@@ -162,7 +162,7 @@ non_linear_default_code = "halofit"
 class classy(BoltzmannBase):
     # Name of the Class repo/folder and version to download
     classy_repo_name = "lesgourg/class_public"
-    classy_repo_version = "v2.7.2"
+    classy_repo_version = "v2.8.0"
 
     def initialize(self):
         """Importing CLASS from the correct path, if given, and if not, globally."""
@@ -250,18 +250,17 @@ class classy(BoltzmannBase):
             elif k in ["Pk_interpolator", "Pk_grid"]:
                 self.extra_args["output"] += " mPk"
                 v = deepcopy(v)
-                self.extra_args["P_k_max_h/Mpc"] = max(
-                    v.pop("k_max"), self.extra_args.get("P_k_max_h/Mpc", 0))
+                self.extra_args["P_k_max_1/Mpc"] = max(
+                    v.pop("k_max"), self.extra_args.get("P_k_max_1/Mpc", 0))
                 self.add_z_for_matter_power(v.pop("z"))
                 # Use halofit by default if non-linear requested but no code specified
                 if v.get("nonlinear", False) and "non linear" not in self.extra_args:
                     self.extra_args["non linear"] = non_linear_default_code
-                kwargs = deepcopy(v)
                 for pair in v.pop("vars_pairs", [("delta_tot", "delta_tot")]):
                     if pair == ("delta_tot", "delta_tot"):
-                        kwargs["only_clustering_species"] = False
+                        v["only_clustering_species"] = False
                     elif pair == ("delta_nonu", "delta_nonu"):
-                        kwargs["only_clustering_species"] = True
+                        v["only_clustering_species"] = True
                     else:
                         raise LoggedError(self.log, "NotImplemented in CLASS: %r", pair)
                     product = ("Pk_grid", v["nonlinear"]) + tuple(pair)
@@ -278,6 +277,7 @@ class classy(BoltzmannBase):
         # Derived parameters (if some need some additional computations)
         if any(("sigma8" in s) for s in self.output_params or requirements):
             self.extra_args["output"] += " mPk"
+            # TODO: consistent P_k_max_h vs P_k_max_1
             self.extra_args["P_k_max_h/Mpc"] = (
                 max(1, self.extra_args.get("P_k_max_h/Mpc", 0)))
         # Adding tensor modes if requested
@@ -369,6 +369,7 @@ class classy(BoltzmannBase):
             method = getattr(self.classy, collector.method)
             arg_array = self.collectors[product].arg_array
             if arg_array is None:
+                print(collector.method)
                 state[product] = method(
                     *self.collectors[product].args, **self.collectors[product].kwargs)
             elif isinstance(arg_array, Number):
@@ -388,7 +389,7 @@ class classy(BoltzmannBase):
                     state[product][i] = method(
                         *self.collectors[product].args, **kwargs)
             if collector.post:
-                state[product] = collector.post(state[product])
+                state[product] = collector.post(*state[product])
         # Prepare derived parameters
         d, d_extra = self._get_derived_all(derived_requested=want_derived)
         if want_derived:

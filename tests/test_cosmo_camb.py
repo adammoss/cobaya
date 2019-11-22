@@ -1,9 +1,9 @@
 from __future__ import absolute_import
 from .common import process_modules_path
-import sys
 import os
 import numpy as np
 from cobaya.model import get_model
+from cobaya.tools import load_module
 
 params = {'ombh2': 0.02242, 'omch2': 0.11933, 'H0': 67.66, 'tau': 0.0561,
           'mnu': 0.06, 'nnu': 3.046, 'num_massive_neutrinos': 1, 'ns': 0.9665,
@@ -11,11 +11,8 @@ params = {'ombh2': 0.02242, 'omch2': 0.11933, 'H0': 67.66, 'tau': 0.0561,
 
 
 def test_sources(modules):
-    sys.path.insert(0, os.path.join(process_modules_path(modules), "code", "CAMB"))
-    try:
-        import camb
-    finally:
-        sys.path.pop(0)
+    camb = load_module("camb",
+                       path=os.path.join(process_modules_path(modules), "code", "CAMB"))
     from camb.sources import GaussianSourceWindow
 
     pars = camb.set_params(**params)

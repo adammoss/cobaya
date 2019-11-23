@@ -71,7 +71,7 @@ class Likelihood(Theory):
         """
         raise LoggedError(self.log, "Exact marginal likelihood not defined.")
 
-    def run_calculation(self, state, want_derived=False, **params_values_dict):
+    def calculate(self, state, want_derived=True, **params_values_dict):
         """
         Calculates the likelihood and any derived parameters or needs.
 

@@ -2,7 +2,7 @@
 
 ## This branch
 
-- **had to change test ch2 for some classy likes for some travis pass, but still failed so turned off classy in travis**
+- **had to change test chi2/tolerance and some classy things for some travis to pass, need checking**
 - allow multiple inter-dependent theory classes
 - allow theories and likelihoods to all specify requirements and define derived products 
   with general dependencies
@@ -13,7 +13,14 @@
 - three initialization methods: initialize (from __init__), initialize_with_params 
   (after parameter assignment) and initialize_with_provider (once all configured)
 - Likelihood now inherits from Theory, with general cached compute and deque states
-#TODO: does not support requirements that depend on actual needs
+- changed TCMB to be consistent
+
+## TODO 
+ - does not support requirements that depend on actual needs
+ - mode version trace dump with output files
+ - init without yaml/inheritance
+ - reading defaults only once; allow separate like instantiation + use equivalent to loading in cobaya
+ - move sampler/plik install into class methods
 
 ### General
 

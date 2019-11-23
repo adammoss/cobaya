@@ -58,6 +58,32 @@ class Theory(CobayaComponent):
         # set-set states whenever needs change
         self._states.clear()
 
+    def calculate(self, state, want_derived=True, **params_values_dict):
+        """
+        Do the actual calculation and store results in state dict
+
+        :param state: dictionary to store results
+        :param want_derived: whether to set state['derived'] derived parameters
+        :param params_values_dict: parameter values
+        :return: True if success, False for fail
+        """
+        return False
+
+    def initialize_with_params(self):
+        """
+        Additional initialization after requirements called and input_params and
+        output_params have been assigned (but provider and needs assigned).
+        """
+        pass
+
+    def initialize_with_provider(self, provider):
+        """
+        Final initialization after parameters, provider and needs assigned.
+        The provider is used to get the requirements of this theory using provider.get_X()
+        and provider.get_params('Y').
+        """
+        self.provider = provider
+
     def get_param(self, p):
         """
         Interface function for likelihoods to get sampled and derived parameters.
@@ -66,14 +92,28 @@ class Theory(CobayaComponent):
         """
         pass
 
-    def run_calculation(self, state, _derived=None, **params_values_dict):
+    def get_can_provide_methods(self):
         """
-        Do the actual calculation and store results in state dict
+        Get a dictionary of quantities X that can be retrieved using get_X methods.
 
-        :param state: dictionary to store results
-        :param _derived: optional of optional output parameters
-        :param params_values_dict: parameter values
-        :return: True if success, False for fail
+        :return: dictionary of the form {X: get_X method}
+        """
+        return get_class_methods(self.get_provider().__class__, not_base=Theory)
+
+    def get_can_provide_params(self):
+        """
+        Get a list of derived parameters that this component can calculate.
+
+        :return: list of parameter names
+        """
+        return []
+
+    def get_allow_agnostic(self):
+        """
+        Whether it is allowed to pass all unassigned input and output parameters to this
+        component (True) or whether parameters must be explicitly specified (False).
+
+        :return: True or False
         """
         return False
 
@@ -83,14 +123,14 @@ class Theory(CobayaComponent):
         """
         self._states = deque(maxlen=n)
 
-    def compute(self, dependency_params=None, want_derived=False, cached=True,
-                **params_values_dict):
+    def check_cache_and_compute(self, dependency_params=None, want_derived=False,
+                                cached=True, **params_values_dict):
         """
         Takes a dictionary of parameter values and computes the products needed by the
         likelihood, or uses the cached value if that exists for these parameters.
-        If want_derived, the derived parameters are saved in the computed state (
-        retrieved using get_current_derived(self)):
-.        """
+        If want_derived, the derived parameters are saved in the computed state
+        (retrieved using get_current_derived()).
+        """
         params_values_dict = params_values_dict.copy()
         self.log.debug("Got parameters %r", params_values_dict)
 
@@ -116,7 +156,7 @@ class Theory(CobayaComponent):
             if self.timer:
                 self.timer.start()
             try:
-                if not self.run_calculation(state, want_derived, **params_values_dict):
+                if not self.calculate(state, want_derived, **params_values_dict):
                     return False
             except LoggedError:
                 raise
@@ -140,43 +180,14 @@ class Theory(CobayaComponent):
     def get_current_derived(self):
         return self._current_state.get("derived", {})
 
-    def initialize_with_params(self):
+    def get_provider(self):
         """
-        Additional initialization after requirements called and input_params and
-        output_params hjve been assigned (but provider and needs assigned).
-        """
-        pass
+        Return object containing get_X, get_param methods to get computed results.
+        This defaults to self, but can change to delegate provision to another object
 
-    def initialize_with_provider(self, provider):
+        :return: object instance
         """
-        Final initialization after parameters, provider and needs assigned
-        """
-        self.provider = provider
-
-    def get_can_provide_methods(self):
-        """
-        Get a dictionary of quantities X that can be retrieved using get_X methods.
-
-        :return: dictionary of the form {X: get_X method}
-        """
-        return get_class_methods(self.__class__, not_base=Theory)
-
-    def get_can_provide_params(self):
-        """
-        Get a list of derived parameters that this component can calculate.
-
-        :return: list of parameter names
-        """
-        return []
-
-    def get_allow_agnostic(self):
-        """
-        Whether it is allowed to pass all unassigned input parameters to this component
-        (True) or whether parameters must be explicitly specified (False).
-
-        :return: True or False
-        """
-        return False
+        return self
 
 
 class TheoryCollection(ComponentCollection):

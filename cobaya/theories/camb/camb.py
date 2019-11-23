@@ -178,13 +178,15 @@ import logging
 from copy import deepcopy
 import numpy as np
 from collections import namedtuple, OrderedDict as odict
+from packaging import version
 
 # Local
 from cobaya.theories._cosmo import BoltzmannBase
 from cobaya.log import LoggedError
 from cobaya.install import download_github_release, check_gcc_version
 from cobaya.conventions import _T_CMB_K
-from cobaya.tools import getfullargspec, load_module, get_class_methods, get_properties
+from cobaya.tools import getfullargspec, get_class_methods, get_properties
+from cobaya.tools import load_module, VersionCheckError
 
 # Result collector
 Collector = namedtuple("collector", ["method", "args", "kwargs"])
@@ -198,6 +200,7 @@ class camb(BoltzmannBase):
     camb_repo_name = "cmbant/CAMB"
     camb_repo_version = "master"
     camb_min_gcc_version = "6.4"
+    min_camb_version = '1.0.10'
 
     def initialize(self):
         """Importing CAMB from the correct path, if given."""
@@ -226,7 +229,8 @@ class camb(BoltzmannBase):
         else:
             self.log.info("Importing *global* CAMB.")
         try:
-            self.camb = load_module("camb", path=pycamb_path)
+            self.camb = load_module("camb", path=pycamb_path,
+                                    min_version=self.min_camb_version)
         except ImportError:
             raise LoggedError(
                 self.log, "Couldn't find the CAMB python interface.\n"
@@ -234,6 +238,9 @@ class camb(BoltzmannBase):
                           " (a) specify a path (you didn't) or\n"
                           " (b) install the Python interface globally with\n"
                           "     'pip install -e /path/to/camb [--user]'")
+        except VersionCheckError as e:
+            raise LoggedError(self.log, e.msg)
+
         super(camb, self).initialize()
         self.extra_attrs = {"Want_CMB": False, "Want_cl_2D_array": False,
                             'WantCls': False}
@@ -303,7 +310,6 @@ class camb(BoltzmannBase):
                     kwargs={})
                 self.needs_perts = True
             elif k in ["Pk_interpolator", "Pk_grid"]:
-                from packaging import version
                 if version.parse(self.camb.__version__) < version.parse("1.0.11"):
                     raise LoggedError(self.log, "update CAMB to 1.0.11+")
 
@@ -474,7 +480,7 @@ class camb(BoltzmannBase):
                 "Some of the parameters passed to CAMB were not recognized: %s" % str(e))
         return False
 
-    def run_calculation(self, state, want_derived=False, **params_values_dict):
+    def calculate(self, state, want_derived=True, **params_values_dict):
         # Set parameters
         camb_params = self.set(params_values_dict, state)
         # Failed to set parameters but no error raised
@@ -639,8 +645,9 @@ class camb(BoltzmannBase):
         return self._current_state['CAMBdata']
 
     def get_can_provide_params(self):
+        # This is currently not used since get_allow_agnostic() returns True.
         # possible derived parameters for derived_extra, excluding things that are
-        # only input parameters. Must be called after initialize()
+        # only input parameters.
         import ctypes
         params_derived = list(get_class_methods(self.camb.CAMBparams))
         params_derived.remove("custom_source_names")
@@ -658,6 +665,9 @@ class camb(BoltzmannBase):
                     names.append(name)
 
         return names
+
+    def get_version(self):
+        return self.camb.__version__
 
     @classmethod
     def get_path(cls, path):

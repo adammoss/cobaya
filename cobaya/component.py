@@ -94,6 +94,14 @@ class CobayaComponent(HasLogger, HasDefaults):
         """
         pass
 
+    def get_version(self):
+        """
+        Get a dictionary of version information for this component.
+
+        :return: string or dict of values or None
+        """
+        return None
+
     def __exit__(self, exception_type, exception_value, traceback):
         if self.timer:
             self.log.info("Average evaluation time for %s: %g s  (%d evaluations)" % (
@@ -118,6 +126,10 @@ class ComponentCollection(OrderedDict, HasLogger):
                     ["%s : %g s (%d evaluations)" % (
                         component.get_name(), component.timer.time_avg, component.timer.n)
                      for component in timers]))
+
+    def get_version(self):
+        return {component.get_name(): component.get_version()
+                for component in self.values()}
 
     # Python magic for the "with" statement
     def __enter__(self):

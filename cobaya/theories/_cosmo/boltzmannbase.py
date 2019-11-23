@@ -292,50 +292,40 @@ class PowerSpectrumInterpolator(RectBivariateSpline):
     :param z: values of z for which the power spectrum was evaluated.
     :param k: values of k for which the power spectrum was evaluated.
     :param P_or_logP: Values of the power spectrum (or log-values, if logP=True).
-    :param logk: if True (default: False), assumes that k's are log-spaced.
     :param logP: if True (default: False), log of power spectrum are given and used
         for the underlying interpolator.
     :param extrap_kmax: if set, use power law extrapolation beyond kmax up to
         extrap_kmax; useful for tails of integrals.
     """
 
-    def __init__(self, z, k, P_or_logP, extrap_kmax=None, logk=False, logP=False):
-        # TODO: here assuming at least 3 redshifts?
-        # AL I renamed self.logP here to islog since was overriding logP() function
-        self.logk, self.islog = logk, logP
+    def __init__(self, z, k, P_or_logP, extrap_kmax=None, logP=False):
+        self.islog = logP
         #  Check order
         z, k = (np.atleast_1d(x) for x in [z, k])
+        if len(z) < 3:
+            raise ValueError('Require at least three redshifts for interpolation')
         i_z = np.argsort(z)
         i_k = np.argsort(k)
         self.z, self.k, P_or_logP = z[i_z], k[i_k], P_or_logP[i_z, :][:, i_k]
-        self.zmin, self.zmax = np.min(self.z), np.max(self.z)
-        self._fk = (lambda k: k if logk else np.log(k))
-        # TODO: _finvk looks redundant
-        self._finvk = (lambda k: np.exp(k) if logk else k)
-        self.kmin, self.kmax = np.min(self.k), np.max(self.k)
+        self.zmin, self.zmax = self.z[0], self.z[-1]
+        self.kmin, self.kmax = self.k[0], self.k[-1]
+        logk = np.log(self.k)
         # Continue until extrap_kmax using a (log,log)-linear extrapolation
         if extrap_kmax and extrap_kmax > self.kmax:
-            # TODO: here assuming k is k, but _fk seems to assume k is log(k) if
-            #  logk=True. (doc string only refers to spacing, not actually being log(k))
-            #  just remove logk option, avoiding doing log(exp(log(k)))?
-            #  (depending on what CLASS is doing)
-            assert not logk  # only trying to make for for False
-            logknew = np.hstack(
-                [np.log(self.k), np.log(self.kmax) * 0.1 + np.log(extrap_kmax) * 0.9,
+            logk = np.hstack(
+                [logk, np.log(self.kmax) * 0.1 + np.log(extrap_kmax) * 0.9,
                  np.log(extrap_kmax)])
             logPnew = np.empty((P_or_logP.shape[0], P_or_logP.shape[1] + 2))
             logPnew[:, :-2] = P_or_logP if self.islog else np.log(P_or_logP)
-            diff = (logPnew[:, -3] - logPnew[:, -4]) / (logknew[-3] - logknew[-4])
-            delta = diff * (logknew[-1] - logknew[-3])
+            diff = (logPnew[:, -3] - logPnew[:, -4]) / (logk[-3] - logk[-4])
+            delta = diff * (logk[-1] - logk[-3])
             logPnew[:, -1] = logPnew[:, -3] + delta
             logPnew[:, -2] = logPnew[:, -3] + delta * 0.9
             self.kmax = extrap_kmax  # Added for consistency with CAMB
 
             P_or_logP = logPnew if self.islog else np.exp(logPnew)
-            super(self.__class__, self).__init__(self.z, logknew, P_or_logP)
 
-        else:
-            super(self.__class__, self).__init__(self.z, self._fk(self.k), P_or_logP)
+        super(self.__class__, self).__init__(self.z, logk, P_or_logP)
 
     def P(self, z, k, grid=None):
         """
@@ -344,9 +334,9 @@ class PowerSpectrumInterpolator(RectBivariateSpline):
         if grid is None:
             grid = not np.isscalar(z) and not np.isscalar(k)
         if self.islog:
-            return np.exp(self.logP(z, k, grid=grid))
+            return np.exp(self(z, np.log(k), grid=grid))
         else:
-            return self(z, self._fk(k), grid=grid)
+            return self(z, np.log(k), grid=grid)
 
     def logP(self, z, k, grid=None):
         """
@@ -355,6 +345,6 @@ class PowerSpectrumInterpolator(RectBivariateSpline):
         if grid is None:
             grid = not np.isscalar(z) and not np.isscalar(k)
         if self.islog:
-            return self(z, self._fk(k), grid=grid)
+            return self(z, np.log(k), grid=grid)
         else:
-            return self.P(z, k, grid=grid)
+            return np.log(self(z, np.log(k), grid=grid))

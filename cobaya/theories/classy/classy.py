@@ -334,7 +334,7 @@ class classy(BoltzmannBase):
         self.classy.struct_cleanup()
         self.classy.set(**args)
 
-    def run_calculation(self, state, want_derived=False, **params_values_dict):
+    def calculate(self, state, want_derived=True, **params_values_dict):
         # Set parameters
         self.set(params_values_dict)
         # Compute!
@@ -485,6 +485,7 @@ class classy(BoltzmannBase):
         self.classy.struct_cleanup()
 
     def get_can_provide_params(self):
+        # This is currently not used since get_allow_agnostic() returns True.
         # TODO: check with get_param OK with both variants
         names = ['Omega_Lambda', 'Omega_cdm', 'Omega_b', 'Omega_m', 'rs_drag', 'z_reio',
                  'YHe', 'Omega_k', 'age', 'sigma8']

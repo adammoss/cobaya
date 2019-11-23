@@ -195,9 +195,10 @@ class Model(HasLogger):
 
             depend_list = [input_params[p] for p in dependence]
             params = {p: input_params[p] for p in component.input_params}
-            compute_success = component.compute(want_derived=return_derived,
-                                                dependency_params=depend_list,
-                                                cached=cached, **params)
+            compute_success = component.check_cache_and_compute(
+                want_derived=return_derived,
+                dependency_params=depend_list,
+                cached=cached, **params)
             if not compute_success:
                 loglikes[:] = -np.inf
                 self.log.debug(
@@ -398,6 +399,10 @@ class Model(HasLogger):
     def close(self):
         self.__exit__()
 
+    def get_version(self):
+        return dict(theory=self.theory.get_version(),
+                    likelihood=self.likelihood.get_version())
+
     def _set_component_order(self, components, dependencies):
         dependence_order = []
         deps = {p: s.copy() for p, s in dependencies.items()}
@@ -482,9 +487,10 @@ class Model(HasLogger):
                     else:
                         supplier = suppliers[0]
                     if supplier is component:
-                        raise LoggedError(self.log, "Component %r cannot provide %s to "
-                                                    "itself!" % (component, requirement))
-                    requirement_providers[requirement] = supplier
+                        raise LoggedError(self.log,
+                                          "Component %r cannot provide %s to "
+                                          "itself!" % (component, requirement))
+                    requirement_providers[requirement] = supplier.get_provider()
                     needs[supplier] += [{requirement: requires[requirement]}]
                     dependencies[component] = \
                         dependencies.get(component, set()) | {supplier}
@@ -553,17 +559,16 @@ class Model(HasLogger):
                 # "one" only takes leftover parameters
                 if component.get_name() == "one":
                     continue
-                if kind == 'output':
+                if component.get_allow_agnostic():
+                    supports_params = None
+                elif kind == 'output':
                     supports_params = set(component.get_can_provide_params())
                     provide = getattr(component, _provides, [])
                     if not isinstance(provide, list):
                         raise LoggedError(self.log, "'%s' must be a list of "
                                                     "parameter names" % _provides)
                     supports_params |= set(provide)
-                elif component.get_allow_agnostic():
-                    supports_params = None
                 else:
-                    # TODO: check
                     supports_params = component.get_requirements()
 
                 # Identify parameters understood by this likelihood/theory
@@ -577,7 +582,8 @@ class Model(HasLogger):
                             if kind == "input":
                                 # If external function, no problem: it may have
                                 # default value
-                                if not isinstance(component, LikelihoodExternalFunction):
+                                if not isinstance(component,
+                                                  LikelihoodExternalFunction):
                                     raise LoggedError(
                                         self.log,
                                         "Parameter '%s' needed as input for '%s', "
@@ -599,7 +605,8 @@ class Model(HasLogger):
                     for p in supports_params:
                         if p in params_assign[kind]:
                             if not any((c is not component and p in
-                                        getattr(c, _provides, [])) for c in components):
+                                        getattr(c, _provides, [])) for c in
+                                       components):
                                 params_assign[kind][p] += [component]
                 # 5. No parameter knowledge: store as parameter agnostic
                 else:
@@ -667,8 +674,9 @@ class Model(HasLogger):
                 unassigned_output)
         if multiassigned_output:
             raise LoggedError(
-                self.log, "Output params can only be computed by one likelihood/theory, "
-                          "but some were claimed by more than one: %r.",
+                self.log,
+                "Output params can only be computed by one likelihood/theory, "
+                "but some were claimed by more than one: %r.",
                 multiassigned_output)
         # Finished! Assign and update infos
         for kind, option, attr in (
@@ -685,7 +693,8 @@ class Model(HasLogger):
                                                                             attr)
                 else:
                     info_theory[component.get_name()].pop(_params, None)
-                    info_theory[component.get_name()][option] = getattr(component, attr)
+                    info_theory[component.get_name()][option] = getattr(component,
+                                                                        attr)
         if self.log.getEffectiveLevel() <= logging.DEBUG:
             self.log.debug("Parameters were assigned as follows:")
             for component in components:
@@ -711,8 +720,9 @@ class Model(HasLogger):
         """
         # Fill unknown speeds with the value of the slowest one, and clip with overhead
         components = list(self.likelihood.values()) + list(self.theory.values())
-        speeds = np.array([getattr(component, "speed", -1) for component in components],
-                          dtype=np.float64)
+        speeds = np.array(
+            [getattr(component, "speed", -1) for component in components],
+            dtype=np.float64)
         # Add overhead to the defined ones, and clip to the slowest the undefined ones
         speeds[speeds > 0] = (speeds[speeds > 0] ** -1 + self.overhead) ** -1
         try:
@@ -724,7 +734,8 @@ class Model(HasLogger):
             component.speed = speeds[i]
         # Compute "footprint"
         # i.e. likelihoods (and theory) that we must recompute when each parameter changes
-        footprints = np.zeros((len(self.sampled_dependence), len(components)), dtype=int)
+        footprints = np.zeros((len(self.sampled_dependence), len(components)),
+                              dtype=int)
         for i, ls in enumerate(self.sampled_dependence.values()):
             for j, like in enumerate(components):
                 footprints[i, j] = like in ls
@@ -784,7 +795,8 @@ class Model(HasLogger):
                                           np.log(np.min(params_speeds[i + 1:])))
                 i_max = np.argmin(log_differences)
                 blocks = (
-                    lambda l: [list(chain(*l[:i_max + 1])), list(chain(*l[i_max + 1:]))])(
+                    lambda l: [list(chain(*l[:i_max + 1])),
+                               list(chain(*l[i_max + 1:]))])(
                     blocks)
                 # In this case, speeds must be *cumulative*, since I am squashing blocks
                 cum_inv = lambda ss: 1 / (sum(1 / ss))
@@ -828,8 +840,9 @@ class Model(HasLogger):
             raise LoggedError(
                 self.log, "Manual blocking: unkown parameters: %r", unknown)
         if (speeds != np.sort(speeds)).all():
-            self.log.warning("Manual blocking: speed-blocking *apparently* non-optimal: "
-                             "sort by ascending speed when possible")
+            self.log.warning(
+                "Manual blocking: speed-blocking *apparently* non-optimal: "
+                "sort by ascending speed when possible")
         return speeds, blocks
 
     def _get_auto_covmat(self, params_info):

@@ -21,6 +21,7 @@ from collections import OrderedDict as odict
 from ast import parse
 import warnings
 import inspect
+from packaging import version
 
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore")
@@ -88,14 +89,23 @@ def get_kind(name, fail_if_not_found=True):
             return None
 
 
-def load_module(name, package=None, path=None):
+class VersionCheckError(ValueError):
+    pass
+
+
+def load_module(name, package=None, path=None, min_version=None):
     if path:
         sys.path.insert(0, os.path.abspath(os.path.normpath(path)))
     try:
-        return import_module(name, package=package)
+        module = import_module(name, package=package)
+        if min_version and version.parse(module.__version__) < version.parse(min_version):
+            raise VersionCheckError(
+                "module %s at %s, is version %s but require %s or higher" %
+                (name, os.path.dirname(module.__file__), module.__version__, min_version))
     finally:
         if path:
             sys.path.pop(0)
+    return module
 
 
 def get_class(name, kind=None, None_if_not_found=False, allow_external=True,

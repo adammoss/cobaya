@@ -26,3 +26,5 @@ tests/.ipynb_checkpoints
 
 # pytest
 .cache
+
+runs

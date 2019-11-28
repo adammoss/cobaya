@@ -178,9 +178,6 @@ from cobaya.install import download_github_release, check_gcc_version
 from cobaya.conventions import _c_km_s, _T_CMB_K
 from cobaya.tools import deepcopy_where_possible
 
-from scipy.integrate import quad
-from astropy.utils import isiterable
-
 # Result collector
 collector = namedtuple("collector", ["method", "args", "kwargs"])
 collector.__new__.__defaults__ = (None, [], {})
@@ -256,9 +253,6 @@ class camb(_cosmo):
         self.limber = False
         self.non_linear_lens = False
         self.non_linear_pk = False
-
-        # AJM
-        self.w = lambda a: -1
 
     ###     # TODO: This will hopefully be fixed later
     ###        self.extra_attrs["Want_CMB"] = False
@@ -382,20 +376,6 @@ class camb(_cosmo):
             return self.planck_to_camb.get(p, p)
         return p
 
-    def _w_integrand(self, ln1pz):
-        a = np.exp(-ln1pz)
-        return 1.0 + self.w(a)
-
-    def de_density_scale(self, z):
-        if isiterable(z):
-            z = np.asarray(z)
-            ival = np.array([quad(self._w_integrand, 0, np.log(1 + redshift))[0]
-                             for redshift in z])
-            return np.exp(3 * ival)
-        else:
-            ival = quad(self._w_integrand, 0, np.log(1 + z))[0]
-            return np.exp(3 * ival)
-
     def set(self, params_values_dict, i_state):
         # Store them, to use them later to identify the state
         self.states[i_state]["params"] = deepcopy(params_values_dict)
@@ -406,16 +386,9 @@ class camb(_cosmo):
         # Generate and save
         self.log.debug("Setting parameters: %r", args)
 
-        # AJM
-        loga_min = -4.0
-        w_min = -1.0
-        w_max = 1.0
-        nbins = 5
-        omm_test = 0.3
-
-        # Create w bins and remove from other arguments to CAMB
+        # AJM - Create w bins and remove from other arguments to CAMB
         pattern = re.compile(r"w_([0-9])+")
-        x = [-1.0 for _ in range(nbins)]
+        x = [-1.0 for _ in range(self.w_bins)]
         for k, v in list(args.items()):
             m = re.search(pattern, k)
             if m is not None:
@@ -423,19 +396,18 @@ class camb(_cosmo):
                 x[bin - 1] = v
                 del args[k]
 
-        def w(a):
-            idx = min(int((nbins) * np.log10(a) / (loga_min)), nbins - 1)
-            return x[idx]
-        self.w = w
+        # Piecewise function for w
+        self.w = lambda a: x[min(int(self.w_bins * np.log10(a) / self.loga_min), self.w_bins - 1)]
 
         a_vals = np.logspace(-5, 0, 1000)
         w_vals = np.array([self.w(a) for a in a_vals])
 
         # Check if w is valid
-        valid = np.all(np.isfinite(w_vals)) and np.all(w_vals <= w_max) and np.all(w_vals >= w_min)
+        valid = np.all(np.isfinite(w_vals)) and np.all(w_vals <= self.w_max) and np.all(w_vals >= self.w_min)
+
         # Check that dark energy density doesn't exceed matter density for z > 10
         for z in np.logspace(1, 4, 50)[::-1]:
-            if (1 - omm_test) * self.de_density_scale(z) > omm_test * (1 + z) ** 3:
+            if (1 - self.omm_test) * self.de_density_scale(z) > self.omm_test * (1 + z) ** 3:
                 valid = False
                 break
         if not valid:

@@ -26,6 +26,10 @@ from cobaya.conventions import _input_params, _output_params
 from cobaya.log import HasLogger
 from cobaya.input import HasDefaults
 
+from scipy.integrate import quad
+from astropy.utils import isiterable
+import numpy as np
+
 # Default options for all subclasses
 class_options = {"speed": -1}
 
@@ -64,6 +68,20 @@ class Theory(HasLogger, HasDefaults):
         (releasing memory, etc.)"""
         pass
 
+    def _w_integrand(self, ln1pz):
+        a = np.exp(-ln1pz)
+        return 1.0 + self.w(a)
+
+    def de_density_scale(self, z):
+        if isiterable(z):
+            z = np.asarray(z)
+            ival = np.array([quad(self._w_integrand, 0, np.log(1 + redshift))[0]
+                             for redshift in z])
+            return np.exp(3 * ival)
+        else:
+            ival = quad(self._w_integrand, 0, np.log(1 + z))[0]
+            return np.exp(3 * ival)
+
     # Generic methods: do not touch these
 
     def __init__(self, info_theory, modules=None, timing=None):
@@ -77,6 +95,14 @@ class Theory(HasLogger, HasDefaults):
         self.timing = timing
         self.n = 0
         self.time_avg = 0
+
+        # AJM
+        self.loga_min = -4.0
+        self.w = lambda a: -1
+        self.w_min = -1.0
+        self.w_max = 1.0
+        self.w_bins = 5
+        self.omm_test = 0.3
 
     def d(self):
         """

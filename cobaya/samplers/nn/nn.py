@@ -1,7 +1,7 @@
 """
 .. module:: samplers.nnest
 
-:Synopsis: Interface for the NNest nested sampler
+:Synopsis: Interface for the nnest nested sampler
 :Author: Adam Moss
 """
 # Python 2/3 compatibility
@@ -37,11 +37,11 @@ class nn(Sampler):
                 self.log.info("Importing *local* nnest from " + self.path)
                 if not os.path.exists(os.path.realpath(self.path)):
                     raise LoggedError(self.log, "The given path does not exist. "
-                                                "Try installing NNest with "
+                                                "Try installing nnest with "
                                                 "'cobaya-install nnest -m [modules_path]")
             sys.path.insert(0, self.path)
         else:
-            self.log.info("Importing *global* NNest.")
+            self.log.info("Importing *global* nnest.")
         try:
             import nnest
             self.nnest = nnest
@@ -51,7 +51,7 @@ class nn(Sampler):
                           "Make sure that you have compiled it, and that you either\n"
                           " (a) specify a path (you didn't) or\n"
                           " (b) install the Python interface globally with\n"
-                          "     '/path/to/NNest/python setup.py install --user'")
+                          "     '/path/to/nnest/python setup.py install --user'")
         # Prepare arguments and settings
         self.nDims = self.model.prior.d()
         self.nDerived = (len(self.model.parameterization.derived_params()) +

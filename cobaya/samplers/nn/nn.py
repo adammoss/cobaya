@@ -87,7 +87,7 @@ class nn(Sampler):
             # Creating output folder, if it does not exist (just one process)
             if not os.path.exists(self.base_dir):
                 os.makedirs(self.base_dir)
-            self.log.info("Storing raw NNest output in '%s'.",
+            self.log.info("Storing raw nnest output in '%s'.",
                           self.base_dir)
         # Exploiting the speed hierarchy
         if self.blocking:
@@ -145,9 +145,12 @@ class nn(Sampler):
                                       append_run_num=True,
                                       log_dir=self.base_dir,
                                       num_live_points=self.nlive,
-                                      num_derived=self.nDerived)
+                                      num_derived=self.nDerived,
+                                      num_slow=self.num_slow)
+
 
         nn.run(dlogz=self.precision_criterion,
+               volume_switch=1.0 / (5 * self.num_slow),
                mcmc_batch_size=1)
 
 

@@ -52,6 +52,11 @@ def main(args):
             data = json.load(f)
 
         if os.path.exists(os.path.join(log_dir, 'chains', 'chain.txt')):
+
+            chain = np.loadtxt(os.path.join(log_dir, 'chains', 'chain.txt'))
+            idx = np.where(chain[:, 0] >  1.0e-10)
+            chain = chain[idx]
+            np.savetxt(os.path.join(log_dir, 'chains', 'chain_trim.txt'), chain, fmt='%.5e')
             names = ['p%i' % i for i in range(int(data['num_params']))]
             labels = [r'x_{%i}' % i for i in range(int(data['num_params']))]
             for i in range(len(sampled_names)):
@@ -60,12 +65,12 @@ def main(args):
             for i in range(len(derived_names)):
                 names[i + len(sampled_names)] = derived_names[i]
                 labels[i + len(sampled_names)] = derived_labels[i]
-            files = getdist.chains.chainFiles(os.path.join(log_dir, 'chains', 'chain.txt'))
+            files = getdist.chains.chainFiles(os.path.join(log_dir, 'chains', 'chain_trim.txt'))
             if data['sampler'] == 'nested':
-                mc = getdist.MCSamples(os.path.join(log_dir, 'chains', 'chain.txt'), names=names, labels=labels,
+                mc = getdist.MCSamples(os.path.join(log_dir, 'chains', 'chain_trim.txt'), names=names, labels=labels,
                                        ignore_rows=0.0, sampler='nested')
             else:
-                mc = getdist.MCSamples(os.path.join(log_dir, 'chains', 'chain.txt'), names=names, labels=labels,
+                mc = getdist.MCSamples(os.path.join(log_dir, 'chains', 'chain_trim.txt'), names=names, labels=labels,
                                        ignore_rows=0.3)
             mc.readChains(files)
             print(mc.getMargeStats())

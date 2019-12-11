@@ -406,7 +406,7 @@ class camb(_cosmo):
         valid = np.all(np.isfinite(w_vals)) and np.all(w_vals <= self.w_max) and np.all(w_vals >= self.w_min)
 
         # Check that dark energy density doesn't exceed matter density for z > 10
-        for z in np.logspace(1, 4, 50)[::-1]:
+        for z in np.logspace(1, 4, 100)[::-1]:
             if (1 - self.omm_test) * self.de_density_scale(z) > self.omm_test * (1 + z) ** 3:
                 valid = False
                 break

@@ -102,7 +102,7 @@ class Theory(HasLogger, HasDefaults):
         self.w_min = -1.0
         self.w_max = 1.0
         self.w_bins = 5
-        self.omm_test = 0.3
+        self.omm_test = 0.2
 
     def d(self):
         """

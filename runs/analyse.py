@@ -23,19 +23,24 @@ def main(args):
 
     sampled_names = []
     sampled_labels = []
-    plotted_names = []
-    plot = True
+    triangle_names = []
+    plot_names = []
+    add_to_triangle_plot = True
 
     for k, v in sampled.items():
         print(k, v)
         sampled_names.append(k)
         sampled_labels.append(v['latex'])
         if k == 'A_planck':
-            plot = False
-        if plot:
-            plotted_names.append(k)
+            add_to_triangle_plot = False
+        if k == 'A_planck':
+            add_to_triangle_plot = False
+        if add_to_triangle_plot:
+            triangle_names.append(k)
+        plot_names.append(k)
 
-    plotted_names.append('H0')
+    triangle_names.append('H0')
+    plot_names.append('H0')
 
     derived_names = []
     derived_labels = []
@@ -78,7 +83,10 @@ def main(args):
 
             if not args.no_plot:
                 g = getdist.plots.getSubplotPlotter()
-                g.triangle_plot(mc, plotted_names, filled=True)
+                g.plots_1d(mc, plot_names, nx=8);
+                g.export(os.path.join(os.path.join(log_dir, 'plots', '1d.png')))
+                g = getdist.plots.getSubplotPlotter()
+                g.triangle_plot(mc, triangle_names, filled=True)
                 g.export(os.path.join(os.path.join(log_dir, 'plots', 'triangle.png')))
 
         if os.path.exists(os.path.join(log_dir, 'results', 'final.csv')):

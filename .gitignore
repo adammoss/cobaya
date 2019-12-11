@@ -28,3 +28,4 @@ tests/.ipynb_checkpoints
 .cache
 
 runs
+!runs/analyse.py

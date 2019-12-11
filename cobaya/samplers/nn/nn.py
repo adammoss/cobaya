@@ -13,6 +13,7 @@ import sys
 import numpy as np
 import logging
 from itertools import chain
+import json
 
 # Local
 from cobaya.tools import read_dnumber, get_external_function
@@ -98,6 +99,8 @@ class nn(Sampler):
         self.ordering = [blocks_flat.index(p) for p in self.model.parameterization.sampled_params()]
         self.grade_dims = np.array([len(block) for block in blocks])
         self.grade_dims = [int(x) for x in self.grade_dims]
+        # TODO: make sure first grade dim is slowest block
+        self.num_slow = self.grade_dims[0]
         # prior conversion from the hypercube
         bounds = self.model.prior.bounds(confidence_for_unbounded=self.confidence_for_unbounded)
         # Check if priors are bounded (nan's to inf)
@@ -119,6 +122,9 @@ class nn(Sampler):
         self.n_derived = len(self.model.parameterization.derived_params())
         self.n_priors = len(self.model.prior)
         self.n_likes = len(self.model.likelihood._likelihoods)
+        with open(os.path.join(self.base_dir, 'params.json'), 'w') as f:
+            f.write(json.dumps([self.model.parameterization.sampled_params_info(),
+                                self.model.parameterization.derived_params()]))
 
     def run(self):
 
@@ -147,7 +153,6 @@ class nn(Sampler):
                                       num_live_points=self.nlive,
                                       num_derived=self.nDerived,
                                       num_slow=self.num_slow)
-
 
         nn.run(dlogz=self.precision_criterion,
                volume_switch=1.0 / (5 * self.num_slow),

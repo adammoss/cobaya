@@ -22,17 +22,10 @@ sampler:
     logzero: -1e300  # safer
     # Verbosity during the sampling process. Set to one of [0,1,2,3]
     feedback:  # default: Same as global `verbosity`
-    # Manual speed blocking
-    # ---------------------
-    # To take full advantage of speed-blocking, sort the blocks by ascending speeds
-    # (unless not possible due to the architecture of your likelihood)
     blocking:
-    #  - [speed_1, [params_1]]
-    #  - etc.
     # Treatment of unbounded parameters: confidence level to use
     # ----------------------------------------------------------
     # (Use with care if there are likelihood modes close to the edge of the prior)
-    num_slow: 0
     confidence_for_unbounded: 0.9999995  # 5 sigmas of the prior
     # Seeding runs
     # ------------

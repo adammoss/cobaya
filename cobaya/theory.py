@@ -99,10 +99,10 @@ class Theory(HasLogger, HasDefaults):
         # AJM
         self.loga_min = -4.0
         self.w = lambda a: -1
-        self.w_min = -1.0
+        self.w_min = -2.0
         self.w_max = 1.0
-        self.w_bins = 5
-        self.omm_test = 0.2
+        self.w_bins = 0
+        self.omm_test = 0.3
 
     def d(self):
         """

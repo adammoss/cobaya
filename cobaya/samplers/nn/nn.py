@@ -101,6 +101,8 @@ class nn(Sampler):
         self.grade_dims = [int(x) for x in self.grade_dims]
         # TODO: make sure first grade dim is slowest block
         self.num_slow = self.grade_dims[0]
+        if self.nDims - self.num_slow <= 1:
+            self.num_slow = 0
         # prior conversion from the hypercube
         bounds = self.model.prior.bounds(confidence_for_unbounded=self.confidence_for_unbounded)
         # Check if priors are bounded (nan's to inf)
@@ -154,9 +156,14 @@ class nn(Sampler):
                                       num_derived=self.nDerived,
                                       num_slow=self.num_slow)
 
-        nn.run(dlogz=self.precision_criterion,
-               volume_switch=1.0 / (5 * self.num_slow),
-               mcmc_batch_size=1)
+
+        if self.num_slow > 0:
+            nn.run(dlogz=self.precision_criterion,
+                   volume_switch=1.0 / (5 * self.num_slow),
+                   mcmc_batch_size=1)
+        else:
+            nn.run(dlogz=self.precision_criterion,
+                   mcmc_batch_size=1)
 
 
 # Installation routines ##################################################################

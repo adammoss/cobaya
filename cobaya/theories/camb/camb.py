@@ -170,6 +170,13 @@ from collections import namedtuple, OrderedDict as odict
 from time import time
 from numbers import Number
 import re
+import six
+
+if six.PY3:
+    from inspect import getfullargspec as getargspec
+else:
+    # noinspection PyDeprecation
+    from inspect import getargspec
 
 # Local
 from cobaya.theories._cosmo import _cosmo
@@ -376,6 +383,57 @@ class camb(_cosmo):
             return self.planck_to_camb.get(p, p)
         return p
 
+    def set_wz_params(self, a_vals, w_vals, cp=None, verbose=False, **params):
+
+        if 'ALens' in params:
+            raise ValueError('Use Alens not ALens')
+
+        if cp is None:
+            cp = self.camb.CAMBparams()
+        else:
+            assert isinstance(cp, self.camb.CAMBparams), "cp should be an instance of CAMBparams"
+
+        used_params = set()
+
+        def do_set(setter):
+            kwargs = {k: params[k] for k in getargspec(setter).args[1:] if k in params}
+            used_params.update(kwargs.keys())
+            if kwargs:
+                if verbose:
+                    logging.warning('Calling %s(**%s)' % (setter.__name__, kwargs))
+                setter(**kwargs)
+
+        # Note order is important: must call DarkEnergy.set_params before set_cosmology if setting theta rather than H0
+        # set_classes allows redefinition of the classes used, so must be called before setting class parameters
+        do_set(cp.set_accuracy)
+        do_set(cp.set_classes)
+        cp.DarkEnergy.set_w_a_table(a_vals, w_vals)
+        do_set(cp.set_cosmology)
+        do_set(cp.set_matter_power)
+        do_set(cp.set_for_lmax)
+        do_set(cp.InitPower.set_params)
+        do_set(cp.NonLinearModel.set_params)
+
+        if cp.InitPower.has_tensors():
+            cp.WantTensors = True
+
+        unused_params = set(params) - used_params
+        if unused_params:
+            for k in unused_params:
+                obj = cp
+                if '.' in k:
+                    parts = k.split('.')
+                    for p in parts[:-1]:
+                        obj = getattr(obj, p)
+                    par = parts[-1]
+                else:
+                    par = k
+                if hasattr(obj, par):
+                    setattr(obj, par, params[k])
+                else:
+                    raise CAMBUnknownArgumentError("Unrecognized parameter: %s" % k)
+        return cp
+
     def set(self, params_values_dict, i_state):
         # Store them, to use them later to identify the state
         self.states[i_state]["params"] = deepcopy(params_values_dict)
@@ -388,34 +446,62 @@ class camb(_cosmo):
 
         # AJM - Create w bins and remove from other arguments to CAMB
         pattern = re.compile(r"w_([0-9])+")
-        x = [-1.0 for _ in range(self.w_bins)]
+
         for k, v in list(args.items()):
             m = re.search(pattern, k)
             if m is not None:
                 bin = int(m.group(1))
-                x[bin - 1] = v
-                del args[k]
+                if bin > self.w_bins:
+                    self.w_bins = bin
 
-        # Piecewise function for w
-        self.w = lambda a: x[min(int(self.w_bins * np.log10(a) / self.loga_min), self.w_bins - 1)]
+        if self.w_bins > 0:
+            x = [-1.0 for _ in range(self.w_bins)]
+            for k, v in list(args.items()):
+                m = re.search(pattern, k)
+                if m is not None:
+                    bin = int(m.group(1))
+                    x[bin - 1] = v
+                    del args[k]
+            print(x)
+            # Piecewise function for w
+            self.w = lambda a: x[min(int(self.w_bins * np.log10(a) / self.loga_min), self.w_bins - 1)]
 
-        a_vals = np.logspace(-5, 0, 1000)
+        num_a_vals = 1000
+        a_vals = np.logspace(-5, 0, num_a_vals)
         w_vals = np.array([self.w(a) for a in a_vals])
 
         # Check if w is valid
         valid = np.all(np.isfinite(w_vals)) and np.all(w_vals <= self.w_max) and np.all(w_vals >= self.w_min)
 
-        # Check that dark energy density doesn't exceed matter density for z > 10
-        for z in np.logspace(1, 4, 100)[::-1]:
-            if (1 - self.omm_test) * self.de_density_scale(z) > self.omm_test * (1 + z) ** 3:
-                valid = False
+        # Check that dark energy density doesn't exceed matter density for a < 0.1
+        omm_test = self.omm_test
+        omde_test = 1.0 - omm_test
+        for i in range(num_a_vals - 1):
+            a1 = a_vals[num_a_vals - i - 2]
+            a2 = a_vals[num_a_vals - i - 1]
+            w2 = w_vals[num_a_vals - i - 2]
+            omm_test = omm_test * (a1 / a2) ** (-3)
+            omde_test = omde_test * (a1 / a2) ** (-3 * (1 + w2))
+            ratio = omde_test / omm_test
+            if a1 < 0.1 and ratio > 1:
+                self.valid = False
                 break
+
+        print(valid)
+
         if not valid:
             return False
 
+        def do_set(setter):
+            kwargs = {k: params[k] for k in getargspec(setter).args[1:] if k in params}
+            used_params.update(kwargs.keys())
+            if kwargs:
+                if verbose:
+                    logging.warning('Calling %s(**%s)' % (setter.__name__, kwargs))
+                setter(**kwargs)
+
         try:
-            cambparams = self.camb.set_params(**args)
-            cambparams.DarkEnergy.set_w_a_table(a_vals, w_vals)
+            cambparams = self.set_wz_params(a_vals, w_vals, **args)
             if self.extra_attrs:
                 self.log.debug("Setting attributes of CAMBParams: %r", self.extra_attrs)
             for attr, value in self.extra_attrs.items():

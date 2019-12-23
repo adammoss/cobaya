@@ -39,9 +39,6 @@ def main(args):
             triangle_names.append(k)
         plot_names.append(k)
 
-    triangle_names.append('H0')
-    plot_names.append('H0')
-
     derived_names = []
     derived_labels = []
     for k, v in derived.items():

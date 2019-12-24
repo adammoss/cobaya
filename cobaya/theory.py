@@ -97,7 +97,7 @@ class Theory(HasLogger, HasDefaults):
         self.time_avg = 0
 
         # AJM
-        self.loga_min = -4.0
+        self.loga_min = -5.0
         self.w = lambda a: -1
         self.w_min = -2.0
         self.w_max = 1.0

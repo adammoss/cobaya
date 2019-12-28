@@ -98,7 +98,7 @@ class Theory(HasLogger, HasDefaults):
 
         # AJM
         self.loga_min = -5.0
-        self.w = lambda a: -1
+        self.w = lambda a: -1.0
         self.w_min = -2.0
         self.w_max = 1.0
         self.w_bins = 0

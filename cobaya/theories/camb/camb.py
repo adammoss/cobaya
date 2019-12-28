@@ -463,7 +463,6 @@ class camb(_cosmo):
                     bin = int(m.group(1))
                     x[bin - 1] = v
                     del args[k]
-            #print(x)
             # Piecewise function for w
             self.w = lambda a: x[min(int(self.w_bins * np.log10(a) / self.loga_min), self.w_bins - 1)]
 
@@ -492,18 +491,8 @@ class camb(_cosmo):
                 self.valid = False
                 break
 
-        #print(valid)
-
         if not valid:
             return False
-
-        def do_set(setter):
-            kwargs = {k: params[k] for k in getargspec(setter).args[1:] if k in params}
-            used_params.update(kwargs.keys())
-            if kwargs:
-                if verbose:
-                    logging.warning('Calling %s(**%s)' % (setter.__name__, kwargs))
-                setter(**kwargs)
 
         try:
             cambparams = self.set_wz_params(a_vals, w_vals, **args)

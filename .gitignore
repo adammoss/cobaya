@@ -27,5 +27,4 @@ tests/.ipynb_checkpoints
 # pytest
 .cache
 
-runs
-!runs/analyse.py
+runs*

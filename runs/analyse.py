@@ -74,7 +74,10 @@ def main(args):
             else:
                 mc = getdist.MCSamples(os.path.join(log_dir, 'chains', 'chain_trim.txt'), names=names, labels=labels,
                                        ignore_rows=0.3)
-            mc.readChains(files)
+            try:
+                mc.readChains(files)
+            except:
+                continue
             print(mc.getMargeStats())
             print(mc.getLikeStats())
 

@@ -156,15 +156,14 @@ class nn(Sampler):
                                       num_derived=self.nDerived,
                                       num_slow=self.num_slow)
 
-
         if self.num_slow > 0:
-            nn.run(dlogz=self.precision_criterion,
-                   volume_switch=1.0 / (5 * self.num_slow),
-                   mcmc_batch_size=1)
+            volume_switch = 1.0 / (5 * self.num_slow)
         else:
-            nn.run(dlogz=self.precision_criterion,
-                   mcmc_batch_size=1)
+            volume_switch = -1.0
 
+        nn.run(dlogz=self.precision_criterion,
+               volume_switch=volume_switch,
+               mcmc_batch_size=1)
 
 # Installation routines ##################################################################
 

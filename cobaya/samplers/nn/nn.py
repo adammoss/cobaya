@@ -139,7 +139,8 @@ class nn(Sampler):
                 if len(loglikes) != len(self.model.likelihood._likelihoods):
                     loglikes = np.full(len(self.model.likelihood._likelihoods), np.nan)
                 derived = list(derived) + list(logpriors) + list(loglikes)
-                logl.append(max(logposterior, 0.99 * self.logzero))
+                # Don't want the contribution from the parameter prior volume, but do want e.g A_planck prior
+                logl.append(max(logposterior + self.logvolume, 0.99 * self.logzero))
                 der.append(derived)
             return np.array(logl), np.array(der)
 

@@ -407,6 +407,7 @@ class camb(_cosmo):
         # set_classes allows redefinition of the classes used, so must be called before setting class parameters
         do_set(cp.set_accuracy)
         do_set(cp.set_classes)
+        #cp.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()
         cp.DarkEnergy = self.camb.dark_energy.DarkEnergyFluid()
         cp.DarkEnergy.set_w_a_table(a_vals, w_vals)
         do_set(cp.set_cosmology)
@@ -466,9 +467,12 @@ class camb(_cosmo):
             # Piecewise function for w
             self.w = lambda a: x[min(int(self.w_bins * np.log10(a) / self.loga_min), self.w_bins - 1)]
 
-        #self.w_bins = 10
-        #x = [-1, -1, -1, 0.4, 0.5, 0.5, 0.5, 0, -1, -1, -1]
-        #self.w = lambda a: x[min(int(self.w_bins * np.log10(a) / self.loga_min), self.w_bins - 1)]
+        """
+        # Test
+        self.w_bins = 10
+        x = [-1, -1, -1, 0.4, 0.5, 0.5, 0.5, 0, -1, -1, -1]
+        self.w = lambda a: x[min(int(self.w_bins * np.log10(a) / self.loga_min), self.w_bins - 1)]
+        """
 
         num_a_vals = 1000
         a_vals = np.logspace(-5, 0, num_a_vals)
@@ -488,7 +492,7 @@ class camb(_cosmo):
             omde_test = omde_test * (a1 / a2) ** (-3 * (1 + w2))
             ratio = omde_test / omm_test
             if a1 < 0.1 and ratio > 1:
-                self.valid = False
+                valid = False
                 break
 
         if not valid:

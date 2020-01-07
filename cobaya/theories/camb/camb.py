@@ -383,7 +383,7 @@ class camb(_cosmo):
             return self.planck_to_camb.get(p, p)
         return p
 
-    def set_wz_params(self, a_vals, w_vals, cp=None, verbose=False, **params):
+    def set_wz_params(self, a_vals, w_vals, de_fluid=True, cp=None, verbose=False, **params):
 
         if 'ALens' in params:
             raise ValueError('Use Alens not ALens')
@@ -407,8 +407,10 @@ class camb(_cosmo):
         # set_classes allows redefinition of the classes used, so must be called before setting class parameters
         do_set(cp.set_accuracy)
         do_set(cp.set_classes)
-        #cp.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()
-        cp.DarkEnergy = self.camb.dark_energy.DarkEnergyFluid()
+        if de_fluid:
+            cp.DarkEnergy = self.camb.dark_energy.DarkEnergyFluid()
+        else:
+            cp.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()
         cp.DarkEnergy.set_w_a_table(a_vals, w_vals)
         do_set(cp.set_cosmology)
         do_set(cp.set_matter_power)
@@ -447,32 +449,75 @@ class camb(_cosmo):
         self.log.debug("Setting parameters: %r", args)
 
         # AJM - Create w bins and remove from other arguments to CAMB
-        pattern = re.compile(r"w_([0-9])+")
 
+        for k, v in list(args.items()):
+            if k == 'w_bbn':
+                self.w_bbn = v
+                del args[k]
+
+        pattern = re.compile(r"w_early_([0-9])+")
         for k, v in list(args.items()):
             m = re.search(pattern, k)
             if m is not None:
                 bin = int(m.group(1))
-                if bin > self.w_bins:
-                    self.w_bins = bin
+                if bin > self.w_early_bins:
+                    self.w_early_bins = bin
 
-        if self.w_bins > 0:
-            x = [-1.0 for _ in range(self.w_bins)]
+        if self.w_early_bins > 0:
+            w_early = [-1.0 for _ in range(self.w_early_bins)]
             for k, v in list(args.items()):
                 m = re.search(pattern, k)
                 if m is not None:
                     bin = int(m.group(1))
-                    x[bin - 1] = v
+                    w_early[bin - 1] = v
                     del args[k]
-            # Piecewise function for w
-            self.w = lambda a: x[min(int(self.w_bins * np.log10(a) / self.loga_min), self.w_bins - 1)]
 
-        """
-        # Test
-        self.w_bins = 10
-        x = [-1, -1, -1, 0.4, 0.5, 0.5, 0.5, 0, -1, -1, -1]
-        self.w = lambda a: x[min(int(self.w_bins * np.log10(a) / self.loga_min), self.w_bins - 1)]
-        """
+        for k, v in list(args.items()):
+            if k == 'w_dark_ages':
+                self.w_dark_ages = v
+                del args[k]
+
+        pattern = re.compile(r"w_late_([0-9])+")
+        for k, v in list(args.items()):
+            m = re.search(pattern, k)
+            if m is not None:
+                bin = int(m.group(1))
+                if bin > self.w_late_bins:
+                    self.w_late_bins = bin
+
+        if self.w_late_bins > 0:
+            w_late = [-1.0 for _ in range(self.w_late_bins)]
+            for k, v in list(args.items()):
+                m = re.search(pattern, k)
+                if m is not None:
+                    bin = int(m.group(1))
+                    w_late[bin - 1] = v
+                    del args[k]
+
+        def w(a):
+            if a < self.min_a_early:
+                return self.w_bbn
+            elif self.max_a_early > a > self.min_a_early:
+                if self.w_early_bins > 0:
+                    idx = int(self.w_early_bins * (np.log10(a) - np.log10(self.min_a_early)) / (np.log10(self.max_a_early) - np.log10(self.min_a_early)))
+                    return w_early[idx]
+                else:
+                    return -1
+            elif a < self.min_a_late:
+                return self.w_dark_ages
+            elif self.max_a_late > a > self.min_a_late:
+                if self.w_late_bins > 0:
+                    idx = int(self.w_late_bins * (np.log10(a) - np.log10(self.min_a_late)) / (np.log10(self.max_a_late) - np.log10(self.min_a_late)))
+                    return w_late[idx]
+                else:
+                    return -1
+            else:
+                if self.w_late_bins > 0:
+                    return w_late[self.w_late_bins - 1]
+                else:
+                    return -1
+
+        self.w = w
 
         num_a_vals = 1000
         a_vals = np.logspace(-5, 0, num_a_vals)

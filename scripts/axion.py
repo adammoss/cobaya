@@ -26,7 +26,8 @@ min_a_late = 1 / (1 + max_z_late)
 w_early_bins = len(w_early)
 w_late_bins = len(w_late)
 
-a_vals = np.logspace(-5, 0, 1000)
+num_a_vals = 1000
+a_vals = np.logspace(-5, 0, num_a_vals)
 z_vals = 1 / a_vals - 1
 
 def w(a):
@@ -90,6 +91,15 @@ print(results_axion.get_Omega('de', 1 / ac - 1))
 results_axion = camb.get_results(pars)
 powers_axion = results_axion.get_cmb_power_spectra(pars, CMB_unit='muK')
 totCL_axion = powers_axion['total']
+axion_density = results_axion.get_dark_energy_rho_w(a_vals)[0]
+axion_w_vals = [-1.0]
+for i in range(num_a_vals - 1):
+    a1 = a_vals[num_a_vals - i - 2]
+    a2 = a_vals[num_a_vals - i - 1]
+    rho1 = axion_density[num_a_vals - i - 2]
+    rho2 = axion_density[num_a_vals - i - 1]
+    axion_w_vals.append(-1.0 - np.log(rho2 / rho1) / np.log(a2 / a1) / 3)
+axion_w_vals = np.array(axion_w_vals[::-1])
 
 # PPF
 w_vals = np.array([w(a) for a in a_vals])
@@ -100,6 +110,14 @@ rho_ppf, _ = results_ppf.get_dark_energy_rho_w(a_vals)
 powers_ppf = results_ppf.get_cmb_power_spectra(pars, CMB_unit='muK')
 totCL_ppf = powers_ppf['total']
 
+# PPF - axion w mimic
+pars.DarkEnergy = DarkEnergyPPF()
+pars.DarkEnergy.set_w_a_table(a_vals, axion_w_vals)
+results_ppf_axion = camb.get_results(pars)
+rho_ppf_axion, _ = results_ppf_axion.get_dark_energy_rho_w(a_vals)
+powers_ppf_axion = results_ppf_axion.get_cmb_power_spectra(pars, CMB_unit='muK')
+totCL_ppf_axion = powers_ppf_axion['total']
+
 # Fluid
 pars.DarkEnergy = DarkEnergyFluid()
 pars.DarkEnergy.set_w_a_table(a_vals, w_vals)
@@ -108,19 +126,31 @@ rho_fluid, _ = results_fluid.get_dark_energy_rho_w(a_vals)
 powers_fluid = results_fluid.get_cmb_power_spectra(pars, CMB_unit='muK')
 totCL_fluid = powers_fluid['total']
 
+# Fluid - axion w mimic
+pars.DarkEnergy = DarkEnergyFluid()
+pars.DarkEnergy.set_w_a_table(a_vals, axion_w_vals)
+results_fluid_axion = camb.get_results(pars)
+rho_fluid_axion, _ = results_fluid_axion.get_dark_energy_rho_w(a_vals)
+powers_fluid_axion = results_fluid_axion.get_cmb_power_spectra(pars, CMB_unit='muK')
+totCL_fluid_axion = powers_fluid_axion['total']
+
 fig, ax = plt.subplots(2, 2, figsize=(12, 12))
 
 ax[0, 0].plot(a_vals, results_lcdm.get_Omega('de', z_vals), color='k')
-ax[0, 0].plot(a_vals, results_axion.get_Omega('de', z_vals), color='b', ls='--')
-ax[0, 0].plot(a_vals, results_ppf.get_Omega('de', z_vals), color='r', ls=':')
-ax[0, 0].plot(a_vals, results_fluid.get_Omega('de', z_vals), color='g', ls='-.')
+ax[0, 0].plot(a_vals, results_axion.get_Omega('de', z_vals), color='b')
+ax[0, 0].plot(a_vals, results_ppf_axion.get_Omega('de', z_vals), color='r', ls=':')
+ax[0, 0].plot(a_vals, results_ppf.get_Omega('de', z_vals), color='r')
+ax[0, 0].plot(a_vals, results_fluid_axion.get_Omega('de', z_vals), color='g', ls='-.')
+ax[0, 0].plot(a_vals, results_fluid.get_Omega('de', z_vals), color='g')
 ax[0, 0].set_ylabel(r'$\rho/\rho_{tot}$')
 ax[0, 0].set_xlabel('$a$')
 ax[0, 0].set_xscale('log')
 
 ax[0, 1].plot(a_vals, results_lcdm.get_dark_energy_rho_w(a_vals)[0], color='k')
-ax[0, 1].plot(a_vals, results_axion.get_dark_energy_rho_w(a_vals)[0], color='b', ls='--')
-ax[0, 1].plot(a_vals, results_ppf.get_dark_energy_rho_w(a_vals)[0], color='r', ls=':')
+ax[0, 1].plot(a_vals, results_axion.get_dark_energy_rho_w(a_vals)[0], color='b')
+ax[0, 1].plot(a_vals, results_ppf_axion.get_dark_energy_rho_w(a_vals)[0], color='r', ls=':')
+ax[0, 1].plot(a_vals, results_ppf.get_dark_energy_rho_w(a_vals)[0], color='r')
+ax[0, 1].plot(a_vals, results_fluid_axion.get_dark_energy_rho_w(a_vals)[0], color='g')
 ax[0, 1].plot(a_vals, results_fluid.get_dark_energy_rho_w(a_vals)[0], color='g', ls='-.')
 ax[0, 1].set_ylabel(r'$\rho_{de}$')
 ax[0, 1].set_xlabel('$a$')
@@ -129,14 +159,18 @@ ax[0, 1].set_yscale('log')
 
 ls = np.arange(totCL_ppf.shape[0])
 ax[1, 0].plot(ls, totCL_lcdm[:, 0], color='k')
-ax[1, 0].plot(ls, totCL_axion[:, 0], color='b', ls='--')
-ax[1, 0].plot(ls, totCL_ppf[:, 0], color='r', ls=':')
-ax[1, 0].plot(ls, totCL_fluid[:, 0], color='g', ls='-.')
+ax[1, 0].plot(ls, totCL_axion[:, 0], color='b')
+ax[1, 0].plot(ls, totCL_ppf_axion[:, 0], color='r', ls=':')
+ax[1, 0].plot(ls, totCL_ppf[:, 0], color='r')
+ax[1, 0].plot(ls, totCL_fluid_axion[:, 0], color='g', ls='-.')
+ax[1, 0].plot(ls, totCL_fluid[:, 0], color='g')
 ax[1, 0].set_xlim([2, 2000])
 
-ax[1, 1].plot(ls, 1 - totCL_lcdm[:, 0] / totCL_axion[:, 0], color='b', ls='--')
-ax[1, 1].plot(ls, 1 - totCL_lcdm[:, 0] / totCL_ppf[:, 0], color='r', ls=':')
-ax[1, 1].plot(ls, 1 - totCL_lcdm[:, 0] / totCL_fluid[:, 0], color='g', ls='-.')
+ax[1, 1].plot(ls, 1 - totCL_lcdm[:, 0] / totCL_axion[:, 0], color='b')
+ax[1, 1].plot(ls, 1 - totCL_lcdm[:, 0] / totCL_ppf_axion[:, 0], color='r', ls=':')
+ax[1, 1].plot(ls, 1 - totCL_lcdm[:, 0] / totCL_ppf[:, 0], color='r')
+ax[1, 1].plot(ls, 1 - totCL_lcdm[:, 0] / totCL_fluid_axion[:, 0], color='g', ls='-.')
+ax[1, 1].plot(ls, 1 - totCL_lcdm[:, 0] / totCL_fluid[:, 0], color='g')
 ax[1, 0].set_xlim([2, 2000])
 ax[1, 1].set_ylim([-0.05, 0.05])
 

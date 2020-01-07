@@ -9,6 +9,7 @@ import camb
 from camb import model, initialpower
 from camb.dark_energy import DarkEnergyPPF, DarkEnergyFluid, AxionEffectiveFluid
 
+"""
 max_z_early = 5700.0
 min_z_early = 500.0
 max_z_late = 30.0
@@ -17,6 +18,16 @@ w_bbn = -1
 w_early = [0.5]
 w_late = [-1.0]
 w_dark_ages = 0.5
+"""
+
+max_z_early = 10000.0
+min_z_early = 500.0
+max_z_late = 3.0
+min_z_late = 0.0
+w_bbn = -1
+w_early = [0.333, 0, 0.333]
+w_late = [-1.0]
+w_dark_ages = 0.0
 
 max_a_early = 1 / (1 + min_z_early)
 min_a_early = 1 / (1 + max_z_early)
@@ -158,20 +169,16 @@ ax[0, 1].set_xscale('log')
 ax[0, 1].set_yscale('log')
 
 ls = np.arange(totCL_ppf.shape[0])
-ax[1, 0].plot(ls, totCL_lcdm[:, 0], color='k')
-ax[1, 0].plot(ls, totCL_axion[:, 0], color='b')
-ax[1, 0].plot(ls, totCL_ppf_axion[:, 0], color='r', ls=':')
-ax[1, 0].plot(ls, totCL_ppf[:, 0], color='r')
-ax[1, 0].plot(ls, totCL_fluid_axion[:, 0], color='g', ls='-.')
-ax[1, 0].plot(ls, totCL_fluid[:, 0], color='g')
-ax[1, 0].set_xlim([2, 2000])
 
-ax[1, 1].plot(ls, 1 - totCL_lcdm[:, 0] / totCL_axion[:, 0], color='b')
-ax[1, 1].plot(ls, 1 - totCL_lcdm[:, 0] / totCL_ppf_axion[:, 0], color='r', ls=':')
-ax[1, 1].plot(ls, 1 - totCL_lcdm[:, 0] / totCL_ppf[:, 0], color='r')
-ax[1, 1].plot(ls, 1 - totCL_lcdm[:, 0] / totCL_fluid_axion[:, 0], color='g', ls='-.')
-ax[1, 1].plot(ls, 1 - totCL_lcdm[:, 0] / totCL_fluid[:, 0], color='g')
+ax[1, 0].plot(ls, totCL_axion[:, 0] - totCL_ppf_axion[:, 0], color='r')
+ax[1, 0].plot(ls, totCL_axion[:, 0] - totCL_fluid_axion[:, 0], color='g')
 ax[1, 0].set_xlim([2, 2000])
-ax[1, 1].set_ylim([-0.05, 0.05])
+ax[1, 0].set_ylim([-100, 100])
+
+ax[1, 1].plot(ls, totCL_lcdm[:, 0] - totCL_axion[:, 0], color='b')
+ax[1, 1].plot(ls, totCL_lcdm[:, 0] - totCL_ppf[:, 0], color='r')
+ax[1, 1].plot(ls, totCL_lcdm[:, 0] - totCL_fluid[:, 0], color='g')
+ax[1, 0].set_xlim([2, 2000])
+ax[1, 1].set_ylim([-100, 100])
 
 plt.show()

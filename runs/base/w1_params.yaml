@@ -1,0 +1,10 @@
+  w_1:
+    prior:
+      min: -1.0
+      max: -0.8
+    ref:
+      dist: norm
+      loc: -0.95
+      scale: 0.02
+    proposal: 0.02
+    latex: w_1

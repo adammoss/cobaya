@@ -22,6 +22,5 @@ theory:
       yheused: YHe  # used by Planck when YHe is derived
       YpBBN: Y_p
       zrei: zre
-    de_model: fluid
-    w_n: 0.5
-
+    de_model:
+    w_n:

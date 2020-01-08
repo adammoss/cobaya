@@ -106,7 +106,6 @@ class Theory(HasLogger, HasDefaults):
         self.max_a_late = 1 / (1 + min_z_late)
         self.min_a_late = 1 / (1 + max_z_late)
 
-        self.de_model = 'fluid'
         self.w = lambda a: -1.0
         self.w_min = -2.0
         self.w_max = 1.0

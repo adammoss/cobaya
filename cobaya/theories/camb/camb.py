@@ -486,14 +486,14 @@ class camb(_cosmo):
             self.ac = 10**args['logac']
             del args['logac']
 
-        elif de_model == 'fluid_bins' or de_model == 'ppf_bins':
+        elif self.de_model == 'fluid_bins' or self.de_model == 'ppf_bins':
 
             for k, v in list(args.items()):
                 if k == 'w_bbn':
                     self.w_bbn = v
                     del args[k]
 
-            early_w_bins = 0
+            w_early_bins = 0
             pattern = re.compile(r"w_early_([0-9])+")
             for k, v in list(args.items()):
                 m = re.search(pattern, k)
@@ -516,13 +516,13 @@ class camb(_cosmo):
                     self.w_dark_ages = v
                     del args[k]
 
-            late_w_bins = 0
+            w_late_bins = 0
             pattern = re.compile(r"w_late_([0-9])+")
             for k, v in list(args.items()):
                 m = re.search(pattern, k)
                 if m is not None:
                     bin = int(m.group(1))
-                    if bin > self.w_late_bins:
+                    if bin > w_late_bins:
                         w_late_bins = bin
 
             if w_late_bins > 0:
@@ -538,21 +538,23 @@ class camb(_cosmo):
                 if a < self.min_a_early:
                     return self.w_bbn
                 elif self.max_a_early > a > self.min_a_early:
-                    if self.w_early_bins > 0:
-                        idx = int(self.w_early_bins * (np.log10(a) - np.log10(self.min_a_early)) / (np.log10(self.max_a_early) - np.log10(self.min_a_early)))
+                    if w_early_bins > 0:
+                        idx = int(w_early_bins * (np.log10(a) - np.log10(self.min_a_early)) /
+                                  (np.log10(self.max_a_early) - np.log10(self.min_a_early)))
                         return w_early[idx]
                     else:
                         return -1
                 elif a < self.min_a_late:
                     return self.w_dark_ages
                 elif self.max_a_late > a > self.min_a_late:
-                    if self.w_late_bins > 0:
-                        idx = int(self.w_late_bins * (np.log10(a) - np.log10(self.min_a_late)) / (np.log10(self.max_a_late) - np.log10(self.min_a_late)))
+                    if w_late_bins > 0:
+                        idx = int(w_late_bins * (np.log10(a) - np.log10(self.min_a_late)) /
+                                  (np.log10(self.max_a_late) - np.log10(self.min_a_late)))
                         return w_late[idx]
                     else:
                         return -1
                 else:
-                    if self.w_late_bins > 0:
+                    if w_late_bins > 0:
                         return w_late[self.w_late_bins - 1]
                     else:
                         return -1
@@ -581,7 +583,7 @@ class camb(_cosmo):
             if not valid:
                 return False
 
-        elif de_model == 'fluid_nodes' or de_model == 'ppf_nodes':
+        elif self.de_model == 'fluid_nodes' or self.de_model == 'ppf_nodes':
 
             w_nodes = 0
             pattern = re.compile(r"w_node_([0-9])+")

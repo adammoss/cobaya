@@ -411,8 +411,10 @@ class camb(_cosmo):
         do_set(cp.set_classes)
         if self.de_model == 'fluid':
             cp.DarkEnergy = self.camb.dark_energy.DarkEnergyFluid()
+            cp.DarkEnergy.set_params( w=-1.0, wa=0, cs2=1.0)
         elif self.de_model == 'ppf':
             cp.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()
+            cp.DarkEnergy.set_params(w=-1.0, wa=0, cs2=1.0)
         elif self.de_model == 'fluid_bins':
             cp.DarkEnergy = self.camb.dark_energy.DarkEnergyFluid()
             cp.DarkEnergy.set_w_a_table(self.a_vals, self.w_vals)

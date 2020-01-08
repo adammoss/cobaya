@@ -1,12 +1,12 @@
   logA:
     prior:
-      min: 2.95
-      max: 3.15
+      min: 3.0
+      max: 3.1
     ref:
       dist: norm
       loc: 3.05
-      scale: 0.002
-    proposal: 0.002
+      scale: 0.001
+    proposal: 0.001
     latex: \log(10^{10} A_\mathrm{s})
     drop: true
   As:
@@ -101,9 +101,9 @@
   rdrag:
     latex: r_\mathrm{drag}
   chi2__CMB:
-    derived: 'lambda chi2__planck_2015_lowTEB, chi2__planck_2015_plikHM_TTTEEE,
-      chi2__planck_2015_lensing: sum([chi2__planck_2015_lowTEB, chi2__planck_2015_plikHM_TTTEEE,
-      chi2__planck_2015_lensing])'
+    derived: 'lambda chi2__planck_2018_lowl_TT, chi2__planck_2018_lowl_EE, chi2__planck_2018_highl_plik_TTTEEE_lite,
+      chi2__planck_2018_lensing_clik: sum([chi2__planck_2018_lowl_TT, chi2__planck_2018_lowl_EE,
+      chi2__planck_2018_highl_plik_TTTEEE_lite, chi2__planck_2018_lensing_clik])'
     latex: \chi^2_\mathrm{CMB}
   chi2__BAO:
     derived: 'lambda chi2__bao_sixdf_2011_bao, chi2__bao_sdss_dr7_mgs, chi2__bao_sdss_dr12_consensus_bao:

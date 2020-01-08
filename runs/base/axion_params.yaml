@@ -1,0 +1,20 @@
+  f_ede:
+    prior:
+      min: 0.0
+      max: 0.1
+    ref:
+      dist: norm
+      loc: 0.0
+      scale: 0.02
+    proposal: 0.02
+    latex: f_{\rm ede}
+  logac:
+    prior:
+      min: -4
+      max: -2
+    ref:
+      dist: norm
+      loc: -3
+      scale: 0.2
+    proposal: 0.2
+    latex: \log(10^{10} a_\mathrm{c})

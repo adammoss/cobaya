@@ -1,6 +1,6 @@
   w_late_1:
     prior:
-      min: -1.2
+      min: -1.0
       max: -0.8
     ref:
       dist: norm
@@ -10,7 +10,7 @@
     latex: w_{\rm late 1}
   w_late_2:
     prior:
-      min: -1.2
+      min: -1.0
       max: -0.8
     ref:
       dist: norm

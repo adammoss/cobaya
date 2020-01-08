@@ -111,8 +111,6 @@ class Theory(HasLogger, HasDefaults):
         self.w_max = 1.0
         self.w_bbn = -1.0
         self.w_dark_ages = -1.0
-        self.w_early_bins = 0
-        self.w_late_bins = 0
         self.omm_test = 0.3
 
     def d(self):

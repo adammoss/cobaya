@@ -8,3 +8,4 @@
       theta_H0_range:
       - 20
       - 100
+    de_model: fluid

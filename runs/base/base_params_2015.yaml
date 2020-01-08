@@ -1,7 +1,7 @@
   logA:
     prior:
       min: 2.95
-      max: 3.15
+      max: 3.20
     ref:
       dist: norm
       loc: 3.05
@@ -34,7 +34,7 @@
     latex: H_0
   ombh2:
     prior:
-      min: 0.0222
+      min: 0.0219
       max: 0.0229
     ref:
       dist: norm
@@ -70,7 +70,7 @@
   tau:
     prior:
       min: 0.04
-      max: 0.10
+      max: 0.12
     ref:
       dist: norm
       loc: 0.055

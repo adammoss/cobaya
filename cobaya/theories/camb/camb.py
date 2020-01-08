@@ -264,6 +264,8 @@ class camb(_cosmo):
     ###     # TODO: This will hopefully be fixed later
     ###        self.extra_attrs["Want_CMB"] = False
 
+        self.log.info("Using DE model: " + self.de_model)
+
     def current_state(self):
         lasts = [self.states[i]["last"] for i in range(self.n_states)]
         return self.states[lasts.index(max(lasts))]
@@ -411,16 +413,16 @@ class camb(_cosmo):
             cp.DarkEnergy = self.camb.dark_energy.DarkEnergyFluid()
         elif self.de_model == 'ppf':
             cp.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()
-        elif self.de_model == 'fluid_w_a_table':
+        elif self.de_model == 'fluid_bins':
             cp.DarkEnergy = self.camb.dark_energy.DarkEnergyFluid()
             cp.DarkEnergy.set_w_a_table(self.a_vals, self.w_vals)
-        elif self.de_model == 'ppf_w_a_table':
+        elif self.de_model == 'ppf_bins':
             cp.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()
             cp.DarkEnergy.set_w_a_table(self.a_vals, self.w_vals)
         elif self.de_model == 'axion':
             cp.DarkEnergy = self.camb.dark_energy.AxionEffectiveFluid()
             min_om = 0.0
-            max_om = 0.001
+            max_om = 0.0001
             max_iter = 100
             tolerance =  0.00001
             for i in range(max_iter):
@@ -477,104 +479,130 @@ class camb(_cosmo):
 
         # AJM
 
-        if 'f_ede' in args:
+        if self.de_model == 'axion':
+
             self.f_ede = args['f_ede']
             del args['f_ede']
-
-        if 'logac' in args:
             self.ac = 10**args['logac']
             del args['logac']
 
-        for k, v in list(args.items()):
-            if k == 'w_bbn':
-                self.w_bbn = v
-                del args[k]
+        elif de_model == 'fluid_bins' or de_model == 'ppf_bins':
 
-        pattern = re.compile(r"w_early_([0-9])+")
-        for k, v in list(args.items()):
-            m = re.search(pattern, k)
-            if m is not None:
-                bin = int(m.group(1))
-                if bin > self.w_early_bins:
-                    self.w_early_bins = bin
+            for k, v in list(args.items()):
+                if k == 'w_bbn':
+                    self.w_bbn = v
+                    del args[k]
 
-        if self.w_early_bins > 0:
-            w_early = [-1.0 for _ in range(self.w_early_bins)]
+            early_w_bins = 0
+            pattern = re.compile(r"w_early_([0-9])+")
             for k, v in list(args.items()):
                 m = re.search(pattern, k)
                 if m is not None:
                     bin = int(m.group(1))
-                    w_early[bin - 1] = v
+                    if bin > w_early_bins:
+                        w_early_bins = bin
+
+            if w_early_bins > 0:
+                w_early = [-1.0 for _ in range(w_early_bins)]
+                for k, v in list(args.items()):
+                    m = re.search(pattern, k)
+                    if m is not None:
+                        bin = int(m.group(1))
+                        w_early[bin - 1] = v
+                        del args[k]
+
+            for k, v in list(args.items()):
+                if k == 'w_dark_ages':
+                    self.w_dark_ages = v
                     del args[k]
 
-        for k, v in list(args.items()):
-            if k == 'w_dark_ages':
-                self.w_dark_ages = v
-                del args[k]
-
-        pattern = re.compile(r"w_late_([0-9])+")
-        for k, v in list(args.items()):
-            m = re.search(pattern, k)
-            if m is not None:
-                bin = int(m.group(1))
-                if bin > self.w_late_bins:
-                    self.w_late_bins = bin
-
-        if self.w_late_bins > 0:
-            w_late = [-1.0 for _ in range(self.w_late_bins)]
+            late_w_bins = 0
+            pattern = re.compile(r"w_late_([0-9])+")
             for k, v in list(args.items()):
                 m = re.search(pattern, k)
                 if m is not None:
                     bin = int(m.group(1))
-                    w_late[bin - 1] = v
-                    del args[k]
+                    if bin > self.w_late_bins:
+                        w_late_bins = bin
 
-        def w(a):
-            if a < self.min_a_early:
-                return self.w_bbn
-            elif self.max_a_early > a > self.min_a_early:
-                if self.w_early_bins > 0:
-                    idx = int(self.w_early_bins * (np.log10(a) - np.log10(self.min_a_early)) / (np.log10(self.max_a_early) - np.log10(self.min_a_early)))
-                    return w_early[idx]
+            if w_late_bins > 0:
+                w_late = [-1.0 for _ in range(w_late_bins)]
+                for k, v in list(args.items()):
+                    m = re.search(pattern, k)
+                    if m is not None:
+                        bin = int(m.group(1))
+                        w_late[bin - 1] = v
+                        del args[k]
+
+            def w(a):
+                if a < self.min_a_early:
+                    return self.w_bbn
+                elif self.max_a_early > a > self.min_a_early:
+                    if self.w_early_bins > 0:
+                        idx = int(self.w_early_bins * (np.log10(a) - np.log10(self.min_a_early)) / (np.log10(self.max_a_early) - np.log10(self.min_a_early)))
+                        return w_early[idx]
+                    else:
+                        return -1
+                elif a < self.min_a_late:
+                    return self.w_dark_ages
+                elif self.max_a_late > a > self.min_a_late:
+                    if self.w_late_bins > 0:
+                        idx = int(self.w_late_bins * (np.log10(a) - np.log10(self.min_a_late)) / (np.log10(self.max_a_late) - np.log10(self.min_a_late)))
+                        return w_late[idx]
+                    else:
+                        return -1
                 else:
-                    return -1
-            elif a < self.min_a_late:
-                return self.w_dark_ages
-            elif self.max_a_late > a > self.min_a_late:
-                if self.w_late_bins > 0:
-                    idx = int(self.w_late_bins * (np.log10(a) - np.log10(self.min_a_late)) / (np.log10(self.max_a_late) - np.log10(self.min_a_late)))
-                    return w_late[idx]
-                else:
-                    return -1
-            else:
-                if self.w_late_bins > 0:
-                    return w_late[self.w_late_bins - 1]
-                else:
-                    return -1
+                    if self.w_late_bins > 0:
+                        return w_late[self.w_late_bins - 1]
+                    else:
+                        return -1
 
-        num_a_vals = 1000
-        self.a_vals = np.logspace(-5, 0, num_a_vals)
-        self.w_vals = np.array([w(a) for a in self.a_vals])
+            num_a_vals = 1000
+            self.a_vals = np.logspace(-5, 0, num_a_vals)
+            self.w_vals = np.array([w(a) for a in self.a_vals])
 
-        # Check if w is valid
-        valid = np.all(np.isfinite(self.w_vals)) and np.all(self.w_vals <= self.w_max) and np.all(self.w_vals >= self.w_min)
+            # Check if w is valid
+            valid = np.all(np.isfinite(self.w_vals)) and np.all(self.w_vals <= self.w_max) and np.all(self.w_vals >= self.w_min)
 
-        # Check that dark energy density doesn't exceed matter density for a < 0.1
-        omm_test = self.omm_test
-        omde_test = 1.0 - omm_test
-        for i in range(num_a_vals - 1):
-            a1 = self.a_vals[num_a_vals - i - 2]
-            a2 = self.a_vals[num_a_vals - i - 1]
-            w2 = self.w_vals[num_a_vals - i - 2]
-            omm_test = omm_test * (a1 / a2) ** (-3)
-            omde_test = omde_test * (a1 / a2) ** (-3 * (1 + w2))
-            ratio = omde_test / omm_test
-            if a1 < 0.1 and ratio > 1:
-                valid = False
-                break
+            # Check that dark energy density doesn't exceed matter density for a < 0.1
+            omm_test = self.omm_test
+            omde_test = 1.0 - omm_test
+            for i in range(num_a_vals - 1):
+                a1 = self.a_vals[num_a_vals - i - 2]
+                a2 = self.a_vals[num_a_vals - i - 1]
+                w2 = self.w_vals[num_a_vals - i - 2]
+                omm_test = omm_test * (a1 / a2) ** (-3)
+                omde_test = omde_test * (a1 / a2) ** (-3 * (1 + w2))
+                ratio = omde_test / omm_test
+                if a1 < 0.1 and ratio > 1:
+                    valid = False
+                    break
 
-        if not valid:
-            return False
+            if not valid:
+                return False
+
+        elif de_model == 'fluid_nodes' or de_model == 'ppf_nodes':
+
+            w_nodes = 0
+            pattern = re.compile(r"w_node_([0-9])+")
+            for k, v in list(args.items()):
+                m = re.search(pattern, k)
+                if m is not None:
+                    node = int(m.group(1))
+                    if node > self.w_nodes:
+                        w_nodes = node
+
+            if w_nodes > 0:
+                nodes = [-1.0 for _ in range(w_nodes)]
+                for k, v in list(args.items()):
+                    m = re.search(pattern, k)
+                    if m is not None:
+                        bin = int(m.group(1))
+                        nodes[bin - 1] = v
+                        del args[k]
+
+            self.a_vals = np.logspace(-5, 0, w_nodes)
+            self.w_vals = np.array(nodes)
 
         try:
             cambparams = self.set_wz_params(**args)

@@ -385,7 +385,7 @@ class camb(_cosmo):
             return self.planck_to_camb.get(p, p)
         return p
 
-    def set_wz_params(self, cp=None, verbose=False, **params):
+    def set_de_params(self, cp=None, verbose=False, **params):
 
         if 'ALens' in params:
             raise ValueError('Use Alens not ALens')
@@ -411,10 +411,10 @@ class camb(_cosmo):
         do_set(cp.set_classes)
         if self.de_model == 'fluid':
             cp.DarkEnergy = self.camb.dark_energy.DarkEnergyFluid()
-            cp.DarkEnergy.set_params( w=-1.0, wa=0, cs2=1.0)
+            do_set(cp.DarkEnergy.set_params)
         elif self.de_model == 'ppf':
             cp.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()
-            cp.DarkEnergy.set_params(w=-1.0, wa=0, cs2=1.0)
+            do_set(cp.DarkEnergy.set_params)
         elif self.de_model == 'fluid_bins':
             cp.DarkEnergy = self.camb.dark_energy.DarkEnergyFluid()
             cp.DarkEnergy.set_w_a_table(self.a_vals, self.w_vals)
@@ -426,7 +426,7 @@ class camb(_cosmo):
             min_om = 0.0
             max_om = 0.0001
             max_iter = 100
-            tolerance =  0.00001
+            tolerance = 0.00001
             for i in range(max_iter):
                 trial_om = (min_om + max_om) / 2
                 cp.DarkEnergy.set_params(self.w_n, trial_om, self.ac)
@@ -609,7 +609,7 @@ class camb(_cosmo):
             self.w_vals = np.array(nodes)
 
         try:
-            cambparams = self.set_wz_params(**args)
+            cambparams = self.set_de_params(**args)
             if self.extra_attrs:
                 self.log.debug("Setting attributes of CAMBParams: %r", self.extra_attrs)
             for attr, value in self.extra_attrs.items():

@@ -25,7 +25,7 @@
       scale: 0.0025
     ref:
       dist: norm
-      loc: 1
+      loc: 1.008
       scale: 0.0
     proposal: 0.0005
     latex: y_\mathrm{cal}
@@ -50,7 +50,7 @@
       max: 1.0
     ref:
       dist: norm
-      loc: 0.96605
+      loc: 0.988
       scale: 0.0
     proposal: 0.002
     latex: n_\mathrm{s}
@@ -93,7 +93,7 @@
       max: 0.130
     ref:
       dist: norm
-      loc: 0.1272
+      loc: 0.1299
       scale: 0.0
     proposal: 0.001
     latex: \Omega_\mathrm{c} h^2
@@ -118,7 +118,7 @@
       max: 0.12
     ref:
       dist: norm
-      loc: 0.068
+      loc: 0.058
       scale: 0.0
     proposal: 0.003
     latex: \tau_\mathrm{reio}

@@ -1,7 +1,7 @@
   logA:
     prior:
-      min: 3.0
-      max: 3.1
+      min: 2.95
+      max: 3.15
     ref:
       dist: norm
       loc: 3.05
@@ -34,8 +34,8 @@
     latex: H_0
   ombh2:
     prior:
-      min: 0.0222
-      max: 0.0229
+      min: 0.0219
+      max: 0.0235
     ref:
       dist: norm
       loc: 0.0224
@@ -44,7 +44,7 @@
     latex: \Omega_\mathrm{b} h^2
   omch2:
     prior:
-      min: 0.115
+      min: 0.114
       max: 0.140
     ref:
       dist: norm

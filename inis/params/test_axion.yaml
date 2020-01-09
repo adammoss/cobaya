@@ -4,7 +4,7 @@
       max: 0.2
     ref:
       dist: norm
-      loc: 0.058
+      loc: 0.0393
       scale: 0.0
     proposal: 0.02
     latex: f_{\rm ede}
@@ -14,7 +14,7 @@
       max: -2
     ref:
       dist: norm
-      loc: -3.696
+      loc: -3.664
       scale: 0.0
     proposal: 0.2
     latex: \log_{10} a_\mathrm{c}
@@ -25,7 +25,7 @@
       scale: 0.0025
     ref:
       dist: norm
-      loc: 1.008
+      loc: 1.00105
       scale: 0.0
     proposal: 0.0005
     latex: y_\mathrm{cal}
@@ -36,7 +36,7 @@
       max: 3.20
     ref:
       dist: norm
-      loc: 3.0805
+      loc: 3.0624
       scale: 0.0
     proposal: 0.002
     latex: \log(10^{10} A_\mathrm{s})
@@ -50,7 +50,7 @@
       max: 1.0
     ref:
       dist: norm
-      loc: 0.988
+      loc: 0.980
       scale: 0.0
     proposal: 0.002
     latex: n_\mathrm{s}
@@ -60,7 +60,7 @@
       max: 74
     ref:
       dist: norm
-      loc: 71.6
+      loc: 70.04
       scale: 0
     proposal: 1
     latex: H_0
@@ -83,7 +83,7 @@
       max: 0.0229
     ref:
       dist: norm
-      loc: 0.02258
+      loc: 0.02271
       scale: 0.0
     proposal: 0.0001
     latex: \Omega_\mathrm{b} h^2
@@ -93,7 +93,7 @@
       max: 0.130
     ref:
       dist: norm
-      loc: 0.1299
+      loc: 0.1255
       scale: 0.0
     proposal: 0.001
     latex: \Omega_\mathrm{c} h^2
@@ -118,7 +118,7 @@
       max: 0.12
     ref:
       dist: norm
-      loc: 0.058
+      loc: 0.060
       scale: 0.0
     proposal: 0.003
     latex: \tau_\mathrm{reio}

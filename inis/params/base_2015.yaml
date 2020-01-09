@@ -35,7 +35,7 @@
   ombh2:
     prior:
       min: 0.0219
-      max: 0.0229
+      max: 0.0235
     ref:
       dist: norm
       loc: 0.0224
@@ -44,7 +44,7 @@
     latex: \Omega_\mathrm{b} h^2
   omch2:
     prior:
-      min: 0.115
+      min: 0.114
       max: 0.140
     ref:
       dist: norm

@@ -37,7 +37,7 @@ min_a_late = 1 / (1 + max_z_late)
 w_early_bins = len(w_early)
 w_late_bins = len(w_late)
 
-num_a_vals = 5
+num_a_vals = 500
 a_vals = np.logspace(-5, 0, num_a_vals)
 z_vals = 1 / a_vals - 1
 
@@ -161,7 +161,9 @@ ax[0, 0].plot(a_vals_plot, results_fluid_axion.get_Omega('de', z_vals_plot), col
 ax[0, 0].plot(a_vals_plot, results_fluid.get_Omega('de', z_vals_plot), color='g')
 ax[0, 0].set_ylabel(r'$\rho/\rho_{tot}$')
 ax[0, 0].set_xlabel('$a$')
+ax[1, 0].set_ylim([0.000001, 1])
 ax[0, 0].set_xscale('log')
+ax[0, 0].set_yscale('log')
 
 ax[0, 1].plot(a_vals_plot, results_lcdm.get_dark_energy_rho_w(a_vals_plot)[0], color='k')
 ax[0, 1].plot(a_vals_plot, results_axion.get_dark_energy_rho_w(a_vals_plot)[0], color='b')

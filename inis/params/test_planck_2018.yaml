@@ -1,11 +1,24 @@
+  # Planck 2018 Plik best fit
+  A_planck:
+    prior:
+      dist: norm
+      loc: 1
+      scale: 0.0025
+    ref:
+      dist: norm
+      loc: 1.00044
+      scale: 0.0
+    proposal: 0.0005
+    latex: y_\mathrm{cal}
+    renames: calPlanck
   logA:
     prior:
       min: 2.95
       max: 3.20
     ref:
       dist: norm
-      loc: 3.05
-      scale: 0.002
+      loc: 3.0448
+      scale: 0.0
     proposal: 0.002
     latex: \log(10^{10} A_\mathrm{s})
     drop: true
@@ -18,28 +31,41 @@
       max: 1.0
     ref:
       dist: norm
-      loc: 0.965
-      scale: 0.004
+      loc: 0.96605
+      scale: 0.0
     proposal: 0.002
     latex: n_\mathrm{s}
-  H0:
+  #H0:
+  #  prior:
+  #    min: 66
+  #    max: 74
+  #  ref:
+  #    dist: norm
+  #    loc: 67.32
+  #    scale: 0
+  #  proposal: 1
+  #  latex: H_0
+  thetastar:
     prior:
-      min: 66
-      max: 74
+      min: 0.005
+      max: 0.1
     ref:
       dist: norm
-      loc: 67
-      scale: 1
-    proposal: 1
+      loc: 0.01041085
+      scale: 0.0
+    proposal: 0.002
+  H0:
     latex: H_0
+    min: 20
+    max: 100
   ombh2:
     prior:
       min: 0.0219
       max: 0.0229
     ref:
       dist: norm
-      loc: 0.0224
-      scale: 0.0001
+      loc: 0.022383
+      scale: 0.0
     proposal: 0.0001
     latex: \Omega_\mathrm{b} h^2
   omch2:
@@ -48,8 +74,8 @@
       max: 0.130
     ref:
       dist: norm
-      loc: 0.12
-      scale: 0.001
+      loc: 0.12011
+      scale: 0.0
     proposal: 0.001
     latex: \Omega_\mathrm{c} h^2
   omegam:
@@ -73,8 +99,8 @@
       max: 0.12
     ref:
       dist: norm
-      loc: 0.055
-      scale: 0.006
+      loc: 0.0543
+      scale: 0.0
     proposal: 0.003
     latex: \tau_\mathrm{reio}
   zre:
@@ -100,12 +126,3 @@
     latex: '{\rm{Age}}/\mathrm{Gyr}'
   rdrag:
     latex: r_\mathrm{drag}
-  chi2__CMB:
-    derived: 'lambda chi2__planck_2015_lowTEB, chi2__planck_2015_plikHM_TTTEEE,
-      chi2__planck_2015_lensing: sum([chi2__planck_2015_lowTEB, chi2__planck_2015_plikHM_TTTEEE,
-      chi2__planck_2015_lensing])'
-    latex: \chi^2_\mathrm{CMB}
-  chi2__BAO:
-    derived: 'lambda chi2__bao_sixdf_2011_bao, chi2__bao_sdss_dr7_mgs, chi2__bao_sdss_dr12_consensus_bao:
-      sum([chi2__bao_sixdf_2011_bao, chi2__bao_sdss_dr7_mgs, chi2__bao_sdss_dr12_consensus_bao])'
-    latex: \chi^2_\mathrm{BAO}

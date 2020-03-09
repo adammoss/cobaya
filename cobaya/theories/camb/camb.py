@@ -184,6 +184,7 @@ from cobaya.log import LoggedError
 from cobaya.install import download_github_release, check_gcc_version
 from cobaya.conventions import _c_km_s, _T_CMB_K
 from cobaya.tools import deepcopy_where_possible
+from cobaya.theories.eomsolver_func import eomsolver
 
 # Result collector
 collector = namedtuple("collector", ["method", "args", "kwargs"])
@@ -441,6 +442,12 @@ class camb(_cosmo):
                     raise ValueError('Max iterations exceeded')
                 if abs(trial_f_ede - self.f_ede) < tolerance:
                     break
+        elif self.de_model == 'gw':
+            avec, weff, rho = eomsolver(0.022, 0.122, 67.5 / 100, omgwh2=self.omgwh2, n_T=3.0, N_eff=3.046,
+                                        kmin=1E-6, kmax=self.kmax, acc=1.0, cutoff=3.0, cache=True)
+            rho = rho / rho[-1]
+            cp.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()
+            cp.DarkEnergy.set_w_a_table(avec, weff, rho=rho)
         else:
             raise ValueError('No valid DE model')
         do_set(cp.set_cosmology)
@@ -607,6 +614,13 @@ class camb(_cosmo):
 
             self.a_vals = np.logspace(-5, 0, w_nodes)
             self.w_vals = np.array(nodes)
+
+        elif self.de_model == 'gw':
+
+            self.omgwh2 = args['omgwh2']
+            del args['omgwh2']
+            self.kmax = 10**args['logkmax']
+            del args['logkmax']
 
         try:
             cambparams = self.set_de_params(**args)

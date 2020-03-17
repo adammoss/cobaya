@@ -23,4 +23,5 @@ theory:
       YpBBN: Y_p
       zrei: zre
     de_model:
+    init_model:
     w_n:

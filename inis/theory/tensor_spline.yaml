@@ -1,0 +1,2 @@
+camb:
+  init_model: tensor_spline

@@ -166,6 +166,7 @@ import os
 import logging
 from copy import deepcopy
 import numpy as np
+from scipy.interpolate import InterpolatedUnivariateSpline
 from collections import namedtuple, OrderedDict as odict
 from time import time
 from numbers import Number
@@ -266,6 +267,7 @@ class camb(_cosmo):
     ###        self.extra_attrs["Want_CMB"] = False
 
         self.log.info("Using DE model: " + self.de_model)
+        self.log.info("Using initial power model: " + self.init_model)
 
     def current_state(self):
         lasts = [self.states[i]["last"] for i in range(self.n_states)]
@@ -386,7 +388,7 @@ class camb(_cosmo):
             return self.planck_to_camb.get(p, p)
         return p
 
-    def set_de_params(self, cp=None, verbose=False, **params):
+    def set_camb_params(self, cp=None, verbose=False, **params):
 
         if 'ALens' in params:
             raise ValueError('Use Alens not ALens')
@@ -453,11 +455,19 @@ class camb(_cosmo):
         do_set(cp.set_cosmology)
         do_set(cp.set_matter_power)
         do_set(cp.set_for_lmax)
-        do_set(cp.InitPower.set_params)
-        do_set(cp.NonLinearModel.set_params)
-
-        if cp.InitPower.has_tensors():
+        if self.init_model == 'tensor_spline':
+            cp.set_initial_power_function(lambda k, As, ns: As * (k / 0.05) ** (ns - 1),
+                                          lambda k, *args:  np.zeros(k.shape),
+                                          args=(self.As, self.ns), effective_ns_for_nonlinear=0.96)
+            ks = np.logspace(np.log10(1e-6), np.log10(2), 100)
+            cp.InitPower.set_tensor_table(ks, 10 ** InterpolatedUnivariateSpline(self.k_nodes,
+                                                                                 self.pk_t_nodes)(np.log10(ks)))
             cp.WantTensors = True
+        else:
+            do_set(cp.InitPower.set_params)
+            if cp.InitPower.has_tensors():
+                cp.WantTensors = True
+        do_set(cp.NonLinearModel.set_params)
 
         unused_params = set(params) - used_params
         if unused_params:
@@ -622,8 +632,19 @@ class camb(_cosmo):
             self.kmax = 10**args['logkmax']
             del args['logkmax']
 
+        if self.init_model == 'tensor_spline':
+            self.k_nodes = [-6, -5, -4, -3, -2, -1, 0, 1, 2]
+            self.pk_t_nodes = []
+            for i in range(1, 10):
+                self.pk_t_nodes.append(args['pk_t_%s' % i])
+                del args['pk_t_%s' % i]
+            self.ns = args['ns']
+            del args['ns']
+            self.As = args['As']
+            del args['As']
+
         try:
-            cambparams = self.set_de_params(**args)
+            cambparams = self.set_camb_params(**args)
             if self.extra_attrs:
                 self.log.debug("Setting attributes of CAMBParams: %r", self.extra_attrs)
             for attr, value in self.extra_attrs.items():

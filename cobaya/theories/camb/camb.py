@@ -642,7 +642,6 @@ class camb(_cosmo):
             del args['ns']
             self.As = args['As']
             del args['As']
-            print(self.pk_t_nodes)
 
         try:
             cambparams = self.set_camb_params(**args)

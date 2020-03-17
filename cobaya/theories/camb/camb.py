@@ -459,9 +459,16 @@ class camb(_cosmo):
             cp.set_initial_power_function(lambda k, As, ns: As * (k / 0.05) ** (ns - 1),
                                           lambda k, *args:  np.zeros(k.shape),
                                           args=(self.As, self.ns), effective_ns_for_nonlinear=0.96)
+            nbins = len(self.kbins)
+            def pk(k):
+                idx = int(nbins * ((np.log10(k) - self.k_t_min) / (self.k_t_max - self.k_t_min)))
+                idx = max(idx, 0)
+                idx = min(idx, nbins - 1)
+                return 10 ** self.kbins[idx]
             ks = np.logspace(np.log10(1e-6), np.log10(2), 100)
-            cp.InitPower.set_tensor_table(ks, 10 ** InterpolatedUnivariateSpline(self.k_nodes,
-                                                                                 self.pk_t_nodes)(np.log10(ks)))
+            pk_vals = np.array([pk(k) for k in ks])
+            pk_vals = pk_vals.astype(np.float64)
+            cp.InitPower.set_tensor_table(ks, pk_vals)
             cp.WantTensors = True
         else:
             do_set(cp.InitPower.set_params)
@@ -633,11 +640,15 @@ class camb(_cosmo):
             del args['logkmax']
 
         if self.init_model == 'tensor_spline':
-            self.k_nodes = [-6, -5, -4.5, -4, -3.5, -3, -2.5, -2, -1.5, -1, -0.5, 0, 1, 2]
-            self.pk_t_nodes = []
-            for i in range(len(self.k_nodes)):
-                self.pk_t_nodes.append(args['pk_t_%s' % (i+1)])
-                del args['pk_t_%s' % (i+1)]
+
+            kbins = []
+            pattern = re.compile(r"pk_t_([0-9])+")
+            for k, v in list(args.items()):
+                m = re.search(pattern, k)
+                if m is not None:
+                    kbins.append(v)
+                    del args[k]
+            self.kbins = kbins
             self.ns = args['ns']
             del args['ns']
             self.As = args['As']

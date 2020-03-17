@@ -113,6 +113,9 @@ class Theory(HasLogger, HasDefaults):
         self.w_dark_ages = -1.0
         self.omm_test = 0.3
 
+        self.k_t_min = -3.5
+        self.k_t_max = -0.5
+
     def d(self):
         """
         Dimension of the input vector.

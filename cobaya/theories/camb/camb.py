@@ -633,15 +633,16 @@ class camb(_cosmo):
             del args['logkmax']
 
         if self.init_model == 'tensor_spline':
-            self.k_nodes = [-6, -5, -4, -3, -2, -1, 0, 1, 2]
+            self.k_nodes = [-6, -5, -4.5, -4, -3.5, -3, -2.5, -2, -1.5, -1, -0.5, 0, 1, 2]
             self.pk_t_nodes = []
-            for i in range(1, 10):
-                self.pk_t_nodes.append(args['pk_t_%s' % i])
-                del args['pk_t_%s' % i]
+            for i in range(len(self.k_nodes)):
+                self.pk_t_nodes.append(args['pk_t_%s' % (i+1)])
+                del args['pk_t_%s' % (i+1)]
             self.ns = args['ns']
             del args['ns']
             self.As = args['As']
             del args['As']
+            print(self.pk_t_nodes)
 
         try:
             cambparams = self.set_camb_params(**args)

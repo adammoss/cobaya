@@ -448,7 +448,7 @@ class camb(_cosmo):
                     break
         elif self.de_model == 'gw':
             avec, weff, rho = eomsolver(0.022, 0.122, 67.5 / 100, omgwh2=self.omgwh2, n_T=self.n_T, N_eff=3.046,
-                                        kmin=1E-6, kmax=1.0, acc=1.0, cutoff=3.0, cache=True)
+                                        kmin=1E-1, kmax=0.5, acc=1.0, cutoff=3.0, cache=True)
             rho = rho / rho[-1]
             cp.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()
             print(avec)
@@ -456,6 +456,7 @@ class camb(_cosmo):
             print(weff)
             print('')
             print(rho)
+            stop
             cp.DarkEnergy.set_w_a_table(avec, weff, rho=rho)
         else:
             raise ValueError('No valid DE model')

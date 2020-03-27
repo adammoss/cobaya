@@ -451,12 +451,6 @@ class camb(_cosmo):
                                         kmin=1E-1, kmax=0.5, acc=1.0, cutoff=3.0, cache=True)
             rho = rho / rho[-1]
             cp.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()
-            print(avec)
-            print('')
-            print(weff)
-            print('')
-            print(rho)
-            stop
             cp.DarkEnergy.set_w_a_table(avec, weff, rho=rho)
         else:
             raise ValueError('No valid DE model')

@@ -266,8 +266,10 @@ class camb(_cosmo):
     ###     # TODO: This will hopefully be fixed later
     ###        self.extra_attrs["Want_CMB"] = False
 
-        self.log.info("Using DE model: " + self.de_model)
-        self.log.info("Using initial power model: " + self.init_model)
+        if self.de_model is not None:
+            self.log.info("Using DE model: " + self.de_model)
+        if self.init_model is not None:
+            self.log.info("Using initial power model: " + self.init_model)
 
     def current_state(self):
         lasts = [self.states[i]["last"] for i in range(self.n_states)]
@@ -445,8 +447,8 @@ class camb(_cosmo):
                 if abs(trial_f_ede - self.f_ede) < tolerance:
                     break
         elif self.de_model == 'gw':
-            avec, weff, rho = eomsolver(0.022, 0.122, 67.5 / 100, omgwh2=self.omgwh2, n_T=3.0, N_eff=3.046,
-                                        kmin=1E-6, kmax=self.kmax, acc=1.0, cutoff=3.0, cache=True)
+            avec, weff, rho = eomsolver(0.022, 0.122, 67.5 / 100, omgwh2=self.omgwh2, n_T=self.n_T, N_eff=3.046,
+                                        kmin=1E-6, kmax=1.0, acc=1.0, cutoff=3.0, cache=True)
             rho = rho / rho[-1]
             cp.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()
             cp.DarkEnergy.set_w_a_table(avec, weff, rho=rho)
@@ -636,8 +638,8 @@ class camb(_cosmo):
 
             self.omgwh2 = args['omgwh2']
             del args['omgwh2']
-            self.kmax = 10**args['logkmax']
-            del args['logkmax']
+            self.n_T = args['n_T']
+            del args['n_T']
 
         if self.init_model == 'tensor_spline':
 

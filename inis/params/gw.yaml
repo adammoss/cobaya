@@ -7,14 +7,14 @@
       loc: 0.000005
       scale: 0.000002
     proposal: 0.000002
-    latex: f_{\rm ede}
-  logkmax:
+    latex: \Omega_\mathrm{GW} h^2
+  n_T:
     prior:
-      min: -2
-      max: 0
+      min: 3
+      max: 5
     ref:
       dist: norm
-      loc: -1.0
+      loc: 4.0
       scale: 0.5
     proposal: 0.5
-    latex: \log_{10} k_{\rm max}
+    latex: n_\mathrm{t}

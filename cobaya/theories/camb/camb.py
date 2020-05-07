@@ -268,6 +268,10 @@ class camb(_cosmo):
 
         if self.de_model is not None:
             self.log.info("Using DE model: " + self.de_model)
+        if self.de_model == 'gw' or self.de_model == 'gw_k':
+            from camb.gw import GW
+            self.gw = GW(max_cycles=50, do_tensor_neutrinos=True)
+
         if self.init_model is not None:
             self.log.info("Using initial power model: " + self.init_model)
 
@@ -447,9 +451,11 @@ class camb(_cosmo):
                 if abs(trial_f_ede - self.f_ede) < tolerance:
                     break
         elif self.de_model == 'gw':
-            avec, weff, rho = eomsolver(0.022, 0.122, 67.5 / 100, omgwh2=self.omgwh2, n_T=self.n_T, N_eff=3.046,
-                                        kmin=1E-1, kmax=0.5, acc=1.0, cutoff=3.0, cache=True)
-            rho = rho / rho[-1]
+            avec, weff, rho = self.gw.wa(self.omgwh2, n_t=self.n_t, kmin=1E-1, kmax=0.5)
+            cp.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()
+            cp.DarkEnergy.set_w_a_table(avec, weff, rho=rho)
+        elif self.de_model == 'gw_k':
+            avec, weff, rho = self.gw.wa(self.omgwh2, k=self.gw_k)
             cp.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()
             cp.DarkEnergy.set_w_a_table(avec, weff, rho=rho)
         else:
@@ -638,8 +644,13 @@ class camb(_cosmo):
 
             self.omgwh2 = args['omgwh2']
             del args['omgwh2']
-            self.n_T = args['n_T']
-            del args['n_T']
+            self.n_t = args['n_t']
+            del args['n_t']
+
+        elif self.de_model == 'gw_k':
+
+            self.omgwh2 = args['omgwh2']
+            del args['omgwh2']
 
         if self.init_model == 'tensor_spline':
 

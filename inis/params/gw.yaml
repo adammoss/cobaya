@@ -8,7 +8,7 @@
       scale: 0.000002
     proposal: 0.000002
     latex: \Omega_\mathrm{GW} h^2
-  n_T:
+  n_t:
     prior:
       min: 3
       max: 5

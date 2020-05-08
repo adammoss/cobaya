@@ -649,6 +649,14 @@ class camb(_cosmo):
 
         elif self.de_model == 'gw_k':
 
+            args = {'As': 2.1025139684474896e-09, 'ns': 0.9651343770393593, 'H0': 70.72524399285466,
+             'ombh2': 0.022183075085502175, 'omch2': 0.11696703371332819, 'mnu': 0.06, 'tau': 0.05341304791731382,
+             'omgwh2': 2.5091106391404508e-06, 'AccuracyBoost': 1, 'halofit_version': 'mead',
+             'bbn_predictor': 'PArthENoPE_880.2_standard.dat', 'num_massive_neutrinos': 1, 'nnu': 3.046,
+             'theta_H0_range': [20, 100], 'lmax': 2508}
+
+            print(args)
+
             self.omgwh2 = args['omgwh2']
             del args['omgwh2']
 

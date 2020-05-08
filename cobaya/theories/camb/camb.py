@@ -451,7 +451,7 @@ class camb(_cosmo):
                 if abs(trial_f_ede - self.f_ede) < tolerance:
                     break
         elif self.de_model == 'gw':
-            avec, weff, rho = self.gw.wa(self.omgwh2, n_t=self.n_t, kmin=1E-1, kmax=0.5)
+            avec, weff, rho = self.gw.wa(self.omgwh2, n_t=self.n_t, kmin=1E-1, kmax=0.8)
             cp.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()
             cp.DarkEnergy.set_w_a_table(avec, weff, rho=rho)
         elif self.de_model == 'gw_k':

@@ -455,7 +455,6 @@ class camb(_cosmo):
             cp.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()
             cp.DarkEnergy.set_w_a_table(avec, weff, rho=rho)
         elif self.de_model == 'gw_k':
-            print(self.omgwh2)
             avec, weff, rho = self.gw.wa(self.omgwh2, k=self.gw_k)
             cp.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()
             cp.DarkEnergy.set_w_a_table(avec, weff, rho=rho)

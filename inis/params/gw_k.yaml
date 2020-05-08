@@ -1,6 +1,6 @@
   omgwh2:
     prior:
-      min: 0.0
+      min: 0.0000
       max: 0.00001
     ref:
       dist: norm

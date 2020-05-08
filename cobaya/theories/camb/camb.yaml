@@ -10,6 +10,7 @@ theory:
     # e.g. precision parameters or non-numerical parameters
     extra_args:
       # e.g AccuracyBoost: [larger than 1]
+      AccuracyBoost: 2
     # Use Planck parameter names, for fast switching CLASS<-->(Planck+CAMB)
     use_planck_names: False
     # Dictionary of (Planck+CAMB)->CLASS names

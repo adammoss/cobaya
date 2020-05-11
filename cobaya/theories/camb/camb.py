@@ -670,10 +670,12 @@ class camb(_cosmo):
         try:
             cambparams = self.set_camb_params(**args)
             results = self.camb.get_background(cambparams)
-            delta = results.conformal_time_a1_a2(0.0, 1.0) - results.conformal_time_a1_a2(0.0, 0.2) + \
+            delta = results.conformal_time_a1_a2(0.0, 1.0) - results.conformal_time_a1_a2(0.0, 0.2) - \
                     results.conformal_time_a1_a2(0.2, 1.0)
-            if abs(delta) > 1e-4:
+            if abs(delta) > 1e-3:
                 print('Problem integrating background')
+                print(args)
+                print(abs(delta), self.omgwh2)
                 return False
             if self.extra_attrs:
                 self.log.debug("Setting attributes of CAMBParams: %r", self.extra_attrs)

@@ -270,7 +270,7 @@ class camb(_cosmo):
             self.log.info("Using DE model: " + self.de_model)
         if self.de_model == 'gw' or self.de_model == 'gw_k':
             from camb.gw import GW
-            self.gw = GW(max_cycles=50, do_tensor_neutrinos=True)
+            self.gw = GW(max_cycles=30, do_tensor_neutrinos=True)
 
         if self.init_model is not None:
             self.log.info("Using initial power model: " + self.init_model)
@@ -675,7 +675,9 @@ class camb(_cosmo):
             if abs(delta) > 1e-3:
                 print('Problem integrating background')
                 print(args)
-                print(abs(delta), self.omgwh2)
+                print(abs(delta))
+                if self.de_model == 'gw' or self.de_model == 'gw_k':
+                    print(self.omgwh2)
                 return False
             if self.extra_attrs:
                 self.log.debug("Setting attributes of CAMBParams: %r", self.extra_attrs)

@@ -175,6 +175,7 @@ import ctypes
 from copy import deepcopy
 from typing import NamedTuple, Any
 import numpy as np
+from scipy.interpolate import CubicSpline
 # Local
 from cobaya.theories._cosmo import BoltzmannBase
 from cobaya.log import LoggedError
@@ -256,6 +257,18 @@ class camb(BoltzmannBase):
                                    p not in self.get_can_support_params()]
         self.requires = [p for p in self.requires if p not in self._transfer_requires]
         self.log.info("Initialized!")
+
+        # Baseline Plank 2018 + BAO
+        H0 = 67.66
+        ombh2 = 0.02242
+        omch2 = 0.11933
+        a = np.logspace(-6, 0, 1000)
+        pars = self.camb.CAMBparams()
+        pars.set_cosmology(H0=H0, ombh2=ombh2, omch2=omch2, mnu=0.06, omk=0, tau=0.06)
+        results_lcdm = self.camb.get_background(pars)
+        densities_lcdm = results_lcdm.get_background_densities(a)
+        self.omega_lambda = densities_lcdm['de'][-1] / densities_lcdm['tot'][-1]
+        self.total_density = CubicSpline(a, densities_lcdm['tot'] / a ** 4)
 
     def _extract_params(self, set_func):
         args = {}

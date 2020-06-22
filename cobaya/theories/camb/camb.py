@@ -279,7 +279,7 @@ class camb(BoltzmannBase):
         densities_lcdm = results_lcdm.get_background_densities(a)
         self.omega_lambda = densities_lcdm['de'][-1] / densities_lcdm['tot'][-1]
         self.total_density = CubicSpline(a, densities_lcdm['tot'] / a ** 4)
-        self.a_vals = np.logspace(-6, 0, 20)
+        self.a_vals = np.logspace(-6, 0, 1000)
 
         self.de_model = 'fluid'
 
@@ -791,31 +791,20 @@ class camb(BoltzmannBase):
 
             rho_lambda = self.total_density(1.0) * self.omega_lambda
 
-            num_spikes = 0
             pattern = re.compile(r"spike_([0-9])+")
+            amplitude_spikes = [0.0 for _ in range(20)]
             for k, v in list(args.items()):
                 m = re.search(pattern, k)
                 if m is not None:
-                    node = int(m.group(1))
-                    if node > self.w_nodes:
-                        num_spikes = node
-
-            if num_spikes > 0:
-                amplitude_spikes = [0.0 for _ in range(num_spikes)]
-                for k, v in list(args.items()):
-                    m = re.search(pattern, k)
-                    if m is not None:
-                        bin = int(m.group(1))
-                        amplitude_spikes[bin - 1] = v
-                        del args[k]
-            else:
-                raise LoggedError(self.log, 'No spikes in input')
+                    bin = int(m.group(1))
+                    amplitude_spikes[bin - 1] = v
+                    del args[k]
 
             a_spikes = np.logspace(-5, 0, len(amplitude_spikes))
 
-            for i in range(len(self.a_spikes)):
+            for i in range(len(a_spikes)):
                 rho_lambda += np.array(
-                    [spike(a, a_spikes[i], self.total_density(a_spikes[i]) * amplitude_spikes[i]) for a in a])
+                    [spike(a, a_spikes[i], self.total_density(a_spikes[i]) * amplitude_spikes[i]) for a in self.a_vals])
 
             cs = CubicSpline(self.a_vals, rho_lambda)
             self.w_vals = - 1 / 3 * self.a_vals / cs(self.a_vals) * cs(self.a_vals, 1) - 1
@@ -1025,6 +1014,8 @@ class CambTransfers(HelperTheory):
         for name, mapped in self.cobaya_camb.renames.items():
             if mapped in supported_params:
                 supported_params.add(name)
+        for i in range(1, 50):
+            supported_params.add('spike_%s' % i)
         return supported_params
 
     def get_allow_agnostic(self):

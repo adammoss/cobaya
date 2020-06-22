@@ -640,11 +640,10 @@ class Model(HasLogger):
         # Check that unassigned input parameters are at least required by some component
         if self._unassigned_input:
             self._unassigned_input.difference_update(*direct_param_dependence.values())
-            # AJM TODO - fix this
-            #if self._unassigned_input:
-            #    raise LoggedError(
-            #        self.log, "Could not find anything to use input parameter(s) %r.",
-            #        self._unassigned_input)
+            if self._unassigned_input:
+                raise LoggedError(
+                    self.log, "Could not find anything to use input parameter(s) %r.",
+                    self._unassigned_input)
         if self.log.getEffectiveLevel() <= logging.DEBUG:
             self.log.debug("Components will be computed in the order:")
             self.log.debug(" - %r" % list(self._component_order))

@@ -287,7 +287,7 @@ class camb(BoltzmannBase):
         self.model = 'spikes'
 
         if self.model == 'spikes':
-            self.de_model = 'ppf_w_a'
+            self.de_model = 'fluid_w_a'
 
     def _extract_params(self, set_func):
         args = {}
@@ -713,17 +713,13 @@ class camb(BoltzmannBase):
         do_set(cp.set_accuracy)
         do_set(cp.set_classes)
         if self.de_model == 'fluid':
-            cp.DarkEnergy = self.camb.dark_energy.DarkEnergyFluid()
-            do_set(cp.DarkEnergy.set_params)
+            cp.set_dark_energy(w=-1.0, cs2=1.0, wa=0, dark_energy_model='fluid')
         elif self.de_model == 'ppf':
-            cp.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()
-            do_set(cp.DarkEnergy.set_params)
+            cp.set_dark_energy(w=-1.0, cs2=1.0, wa=0, dark_energy_model='ppf')
         elif self.de_model == 'fluid_w_a':
-            cp.DarkEnergy = self.camb.dark_energy.DarkEnergyFluid()
-            cp.DarkEnergy.set_w_a_table(self.a_vals, self.w_vals)
+            cp.set_dark_energy_w_a(self.a_vals, self.w_vals, dark_energy_model='fluid')
         elif self.de_model == 'ppf_w_a':
-            cp.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()
-            cp.DarkEnergy.set_w_a_table(self.a_vals, self.w_vals)
+            cp.set_dark_energy_w_a(self.a_vals, self.w_vals, dark_energy_model='ppf')
         elif self.de_model == 'axion':
             cp.DarkEnergy = self.camb.dark_energy.AxionEffectiveFluid()
             min_om = 0.0
@@ -791,7 +787,7 @@ class camb(BoltzmannBase):
 
             rho_lambda = self.total_density(1.0) * self.omega_lambda
 
-            pattern = re.compile(r"spike_([0-9])+")
+            pattern = re.compile(r"spike_([0-9]{1,2})+")
             amplitude_spikes = [0.0 for _ in range(20)]
             for k, v in list(args.items()):
                 m = re.search(pattern, k)
@@ -808,6 +804,7 @@ class camb(BoltzmannBase):
 
             cs = CubicSpline(self.a_vals, rho_lambda)
             self.w_vals = - 1 / 3 * self.a_vals / cs(self.a_vals) * cs(self.a_vals, 1) - 1
+            self.w_vals = np.clip(self.w_vals, -1, 1)
 
         try:
             if not self._base_params:

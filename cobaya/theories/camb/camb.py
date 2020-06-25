@@ -806,6 +806,8 @@ class camb(BoltzmannBase):
             self.w_vals = - 1 / 3 * self.a_vals / cs(self.a_vals) * cs(self.a_vals, 1) - 1
             self.w_vals = np.clip(self.w_vals, -1, 1)
 
+            print(self.a_vals)
+
         try:
             if not self._base_params:
                 base_args = args.copy()

@@ -283,12 +283,6 @@ class camb(BoltzmannBase):
 
         self.de_model = 'fluid'
 
-        # self.model = ''
-        self.model = 'spikes'
-
-        if self.model == 'spikes':
-            self.de_model = 'fluid_w_a'
-
     def _extract_params(self, set_func):
         args = {}
         params = []
@@ -730,7 +724,11 @@ class camb(BoltzmannBase):
                 trial_om = (min_om + max_om) / 2
                 cp.DarkEnergy.set_params(self.w_n, trial_om, self.ac)
                 do_set(cp.set_cosmology)
-                results = self.camb.get_background(cp)
+                try:
+                    results = self.camb.get_background(cp)
+                except:
+                    max_om = trial_om
+                    continue
                 trial_f_ede = results.get_Omega('de', 1 / self.ac - 1)
                 if trial_f_ede > self.f_ede:
                     max_om = trial_om
@@ -776,7 +774,17 @@ class camb(BoltzmannBase):
 
         # AJM
 
-        if self.model == 'spikes':
+        for k, v in list(args.items()):
+            if 'spike_' in k:
+                model = 'spikes'
+                self.de_model = 'fluid_w_a'
+                break
+            if 'w_n' in k:
+                model = 'axion'
+                self.de_model = 'axion'
+                break
+
+        if model == 'spikes':
 
             def spike(a, a0, amp):
                 sigma = 10
@@ -805,6 +813,15 @@ class camb(BoltzmannBase):
             cs = CubicSpline(self.a_vals, rho_lambda)
             self.w_vals = - 1 / 3 * self.a_vals / cs(self.a_vals) * cs(self.a_vals, 1) - 1
             self.w_vals = np.clip(self.w_vals, -1, 1)
+
+        elif model == 'axion':
+
+            self.w_n = args['w_n']
+            del args['w_n']
+            self.ac = 10 ** args['logac']
+            del args['logac']
+            self.f_ede = args['f_ede']
+            del args['f_ede']
 
         try:
             if not self._base_params:
@@ -1013,6 +1030,9 @@ class CambTransfers(HelperTheory):
                 supported_params.add(name)
         for i in range(1, 50):
             supported_params.add('spike_%s' % i)
+        supported_params.add('w_n')
+        supported_params.add('logac')
+        supported_params.add('f_ede')
         return supported_params
 
     def get_allow_agnostic(self):

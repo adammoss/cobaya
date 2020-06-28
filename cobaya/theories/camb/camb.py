@@ -774,6 +774,7 @@ class camb(BoltzmannBase):
 
         # AJM
 
+        model = ''
         for k, v in list(args.items()):
             if 'spike_' in k:
                 model = 'spikes'

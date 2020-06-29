@@ -166,7 +166,7 @@ import os
 import logging
 from copy import deepcopy
 import numpy as np
-from scipy.interpolate import InterpolatedUnivariateSpline
+from scipy.interpolate import CubicSpline
 from collections import namedtuple, OrderedDict as odict
 from time import time
 from numbers import Number
@@ -268,9 +268,24 @@ class camb(_cosmo):
 
         if self.de_model is not None:
             self.log.info("Using DE model: " + self.de_model)
+
         if self.de_model == 'gw' or self.de_model == 'gw_k':
             from camb.gw import GW
             self.gw = GW(max_cycles=30, do_tensor_neutrinos=True)
+
+        if self.de_model == 'spikes':
+            # Baseline Plank 2018 + BAO
+            H0 = 67.66
+            ombh2 = 0.02242
+            omch2 = 0.11933
+            a = np.logspace(-6, 0, 1000)
+            pars = self.camb.CAMBparams()
+            pars.set_cosmology(H0=H0, ombh2=ombh2, omch2=omch2, mnu=0.06, omk=0, tau=0.06)
+            results_lcdm = self.camb.get_background(pars)
+            densities_lcdm = results_lcdm.get_background_densities(a)
+            self.omega_lambda = densities_lcdm['de'][-1] / densities_lcdm['tot'][-1]
+            self.total_density = CubicSpline(a, densities_lcdm['tot'] / a ** 4)
+            self.a_vals = np.logspace(-6, 0, 1000)
 
         if self.init_model is not None:
             self.log.info("Using initial power model: " + self.init_model)
@@ -424,10 +439,10 @@ class camb(_cosmo):
         elif self.de_model == 'ppf':
             cp.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()
             do_set(cp.DarkEnergy.set_params)
-        elif self.de_model == 'fluid_bins':
+        elif self.de_model == 'fluid_w_a' or self.de_model == 'spikes':
             cp.DarkEnergy = self.camb.dark_energy.DarkEnergyFluid()
             cp.DarkEnergy.set_w_a_table(self.a_vals, self.w_vals)
-        elif self.de_model == 'ppf_bins':
+        elif self.de_model == 'ppf_w_a':
             cp.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()
             cp.DarkEnergy.set_w_a_table(self.a_vals, self.w_vals)
         elif self.de_model == 'axion':
@@ -440,7 +455,11 @@ class camb(_cosmo):
                 trial_om = (min_om + max_om) / 2
                 cp.DarkEnergy.set_params(self.w_n, trial_om, self.ac)
                 do_set(cp.set_cosmology)
-                results = self.camb.get_background(cp)
+                try:
+                    results = self.camb.get_background(cp)
+                except:
+                    max_om = trial_om
+                    continue
                 trial_f_ede = results.get_Omega('de', 1 / self.ac - 1)
                 if trial_f_ede > self.f_ede:
                     max_om = trial_om
@@ -451,13 +470,13 @@ class camb(_cosmo):
                 if abs(trial_f_ede - self.f_ede) < tolerance:
                     break
         elif self.de_model == 'gw':
-            avec, weff, rho = self.gw.wa(self.omgwh2, n_t=self.n_t, kmin=1E-1, kmax=0.8)
+            a_vals, weff, rho = self.gw.wa(self.omgwh2, n_t=self.n_t, kmin=1E-1, kmax=0.8)
             cp.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()
-            cp.DarkEnergy.set_w_a_table(avec, weff, rho=rho)
+            cp.DarkEnergy.set_w_a_table(a_vals, weff, rho=rho)
         elif self.de_model == 'gw_k':
-            avec, weff, rho = self.gw.wa(self.omgwh2, k=self.gw_k)
+            a_vals, weff, rho = self.gw.wa(self.omgwh2, k=self.gw_k)
             cp.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()
-            cp.DarkEnergy.set_w_a_table(avec, weff, rho=rho)
+            cp.DarkEnergy.set_w_a_table(a_vals, weff, rho=rho)
         else:
             raise ValueError('No valid DE model')
         do_set(cp.set_cosmology)
@@ -519,126 +538,39 @@ class camb(_cosmo):
             del args['f_ede']
             self.ac = 10**args['logac']
             del args['logac']
+            self.w_n = args['w_n']
+            del args['w_n']
 
-        elif self.de_model == 'fluid_bins' or self.de_model == 'ppf_bins':
+        elif self.de_model == 'spikes':
 
-            for k, v in list(args.items()):
-                if k == 'w_bbn':
-                    self.w_bbn = v
-                    del args[k]
-
-            w_early_bins = 0
-            pattern = re.compile(r"w_early_([0-9])+")
-            for k, v in list(args.items()):
-                m = re.search(pattern, k)
-                if m is not None:
-                    bin = int(m.group(1))
-                    if bin > w_early_bins:
-                        w_early_bins = bin
-
-            if w_early_bins > 0:
-                w_early = [-1.0 for _ in range(w_early_bins)]
-                for k, v in list(args.items()):
-                    m = re.search(pattern, k)
-                    if m is not None:
-                        bin = int(m.group(1))
-                        w_early[bin - 1] = v
-                        del args[k]
-
-            for k, v in list(args.items()):
-                if k == 'w_dark_ages':
-                    self.w_dark_ages = v
-                    del args[k]
-
-            w_late_bins = 0
-            pattern = re.compile(r"w_late_([0-9])+")
-            for k, v in list(args.items()):
-                m = re.search(pattern, k)
-                if m is not None:
-                    bin = int(m.group(1))
-                    if bin > w_late_bins:
-                        w_late_bins = bin
-
-            if w_late_bins > 0:
-                w_late = [-1.0 for _ in range(w_late_bins)]
-                for k, v in list(args.items()):
-                    m = re.search(pattern, k)
-                    if m is not None:
-                        bin = int(m.group(1))
-                        w_late[bin - 1] = v
-                        del args[k]
-
-            def w(a):
-                if a < self.min_a_early:
-                    return self.w_bbn
-                elif self.max_a_early > a > self.min_a_early:
-                    if w_early_bins > 0:
-                        idx = int(w_early_bins * (np.log10(a) - np.log10(self.min_a_early)) /
-                                  (np.log10(self.max_a_early) - np.log10(self.min_a_early)))
-                        return w_early[idx]
-                    else:
-                        return -1
-                elif a < self.min_a_late:
-                    return self.w_dark_ages
-                elif self.max_a_late > a > self.min_a_late:
-                    if w_late_bins > 0:
-                        idx = int(w_late_bins * (np.log10(a) - np.log10(self.min_a_late)) /
-                                  (np.log10(self.max_a_late) - np.log10(self.min_a_late)))
-                        return w_late[idx]
-                    else:
-                        return -1
+            def spike(a, a0, amp):
+                sigma = 10
+                if np.abs(np.log(a / a0)) > 3 / (2 * sigma):
+                    return amp * np.exp(-3 * np.abs((np.log(a / a0)))) * (a / a0) ** (-3)
                 else:
-                    if w_late_bins > 0:
-                        return w_late[self.w_late_bins - 1]
-                    else:
-                        return -1
+                    return amp * np.exp(-9 / (4 * sigma) - sigma * (np.log(a / a0) ** 2)) * (a / a0) ** (-3)
 
-            num_a_vals = 1000
-            self.a_vals = np.logspace(-5, 0, num_a_vals)
-            self.w_vals = np.array([w(a) for a in self.a_vals])
+            rho_lambda = self.total_density(1.0) * self.omega_lambda
 
-            # Check if w is valid
-            valid = np.all(np.isfinite(self.w_vals)) and np.all(self.w_vals <= self.w_max) and np.all(self.w_vals >= self.w_min)
-
-            # Check that dark energy density doesn't exceed matter density for a < 0.1
-            omm_test = self.omm_test
-            omde_test = 1.0 - omm_test
-            for i in range(num_a_vals - 1):
-                a1 = self.a_vals[num_a_vals - i - 2]
-                a2 = self.a_vals[num_a_vals - i - 1]
-                w2 = self.w_vals[num_a_vals - i - 2]
-                omm_test = omm_test * (a1 / a2) ** (-3)
-                omde_test = omde_test * (a1 / a2) ** (-3 * (1 + w2))
-                ratio = omde_test / omm_test
-                if a1 < 0.1 and ratio > 1:
-                    valid = False
-                    break
-
-            if not valid:
-                return False
-
-        elif self.de_model == 'fluid_nodes' or self.de_model == 'ppf_nodes':
-
-            w_nodes = 0
-            pattern = re.compile(r"w_node_([0-9])+")
+            pattern = re.compile(r"spike_([0-9]{1,2})+")
+            amplitude_spikes = [0.0 for _ in range(20)]
             for k, v in list(args.items()):
                 m = re.search(pattern, k)
                 if m is not None:
-                    node = int(m.group(1))
-                    if node > self.w_nodes:
-                        w_nodes = node
+                    bin = int(m.group(1))
+                    amplitude_spikes[bin - 1] = v
+                    del args[k]
 
-            if w_nodes > 0:
-                nodes = [-1.0 for _ in range(w_nodes)]
-                for k, v in list(args.items()):
-                    m = re.search(pattern, k)
-                    if m is not None:
-                        bin = int(m.group(1))
-                        nodes[bin - 1] = v
-                        del args[k]
+            a_spikes = np.logspace(-5, 0, len(amplitude_spikes))
 
-            self.a_vals = np.logspace(-5, 0, w_nodes)
-            self.w_vals = np.array(nodes)
+            for i in range(len(a_spikes)):
+                rho_lambda += np.array(
+                    [spike(a, a_spikes[i], self.total_density(a_spikes[i]) * amplitude_spikes[i]) for a in
+                     self.a_vals])
+
+            cs = CubicSpline(self.a_vals, rho_lambda)
+            self.w_vals = - 1 / 3 * self.a_vals / cs(self.a_vals) * cs(self.a_vals, 1) - 1
+            self.w_vals = np.clip(self.w_vals, -1, 1)
 
         elif self.de_model == 'gw':
 

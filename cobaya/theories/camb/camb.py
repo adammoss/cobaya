@@ -553,7 +553,7 @@ class camb(_cosmo):
             rho_lambda = self.total_density(1.0) * self.omega_lambda
 
             pattern = re.compile(r"spike_([0-9]{1,2})+")
-            amplitude_spikes = [0.0 for _ in range(20)]
+            amplitude_spikes = [0.0 for _ in range(30)]
             for k, v in list(args.items()):
                 m = re.search(pattern, k)
                 if m is not None:

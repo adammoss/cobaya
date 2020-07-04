@@ -439,14 +439,13 @@ class camb(_cosmo):
         elif self.de_model == 'ppf':
             cp.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()
             do_set(cp.DarkEnergy.set_params)
-        elif self.de_model == 'fluid_w_a' or self.de_model == 'spikes':
+        elif self.de_model == 'fluid_w_a':
             cp.DarkEnergy = self.camb.dark_energy.DarkEnergyFluid()
             cp.DarkEnergy.set_w_a_table(self.a_vals, self.w_vals)
-            do_set(cp.set_cosmology)
-            results = self.camb.get_background(cp)
-            powers = results.get_cmb_power_spectra(cp, CMB_unit='muK')
-            print(powers['total'][-1, :])
-            print(results.get_Omega('de', 3000))
+        elif self.de_model == 'spikes':
+            print(self.amplitude_spikes)
+            cp.DarkEnergy = self.camb.dark_energy.AxionEffectiveFluid()
+            cp.DarkEnergy.set_params(beta=6.0, oms=self.amplitude_spikes)
         elif self.de_model == 'ppf_w_a':
             cp.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()
             cp.DarkEnergy.set_w_a_table(self.a_vals, self.w_vals)
@@ -550,34 +549,19 @@ class camb(_cosmo):
 
         elif self.de_model == 'spikes':
 
-            def spike(a, a0, amp):
-                sigma = 10
-                if np.abs(np.log(a / a0)) > 3 / (2 * sigma):
-                    return amp * np.exp(-3 * np.abs((np.log(a / a0)))) * (a / a0) ** (-3)
-                else:
-                    return amp * np.exp(-9 / (4 * sigma) - sigma * (np.log(a / a0) ** 2)) * (a / a0) ** (-3)
-
-            rho_lambda = self.total_density(1.0) * self.omega_lambda
-
             pattern = re.compile(r"spike_([0-9]{1,2})+")
             amplitude_spikes = [0.0 for _ in range(30)]
             for k, v in list(args.items()):
                 m = re.search(pattern, k)
                 if m is not None:
                     bin = int(m.group(1))
-                    amplitude_spikes[bin - 1] = v
+                    amplitude_spikes[bin - 1] = 10**v
                     del args[k]
 
             a_spikes = np.logspace(-5, 0, len(amplitude_spikes))
 
-            for i in range(len(a_spikes)):
-                rho_lambda += np.array(
-                    [spike(a, a_spikes[i], self.total_density(a_spikes[i]) * amplitude_spikes[i]) for a in
-                     self.a_vals])
-
-            cs = CubicSpline(self.a_vals, rho_lambda)
-            self.w_vals = - 1 / 3 * self.a_vals / cs(self.a_vals) * cs(self.a_vals, 1) - 1
-            self.w_vals = np.clip(self.w_vals, -1, 1)
+            self.amplitude_spikes = np.flip(self.total_density(a_spikes) / self.total_density(1.0) *
+                                            np.array(amplitude_spikes))
 
         elif self.de_model == 'gw':
 

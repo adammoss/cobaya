@@ -442,6 +442,11 @@ class camb(_cosmo):
         elif self.de_model == 'fluid_w_a' or self.de_model == 'spikes':
             cp.DarkEnergy = self.camb.dark_energy.DarkEnergyFluid()
             cp.DarkEnergy.set_w_a_table(self.a_vals, self.w_vals)
+            do_set(cp.set_cosmology)
+            results = self.camb.get_background(cp)
+            powers = results.get_cmb_power_spectra(cp, CMB_unit='muK')
+            print(powers['total'][-1, :])
+            print(results.get_Omega('de', 3000))
         elif self.de_model == 'ppf_w_a':
             cp.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()
             cp.DarkEnergy.set_w_a_table(self.a_vals, self.w_vals)
@@ -469,6 +474,8 @@ class camb(_cosmo):
                     raise ValueError('Max iterations exceeded')
                 if abs(trial_f_ede - self.f_ede) < tolerance:
                     break
+            results = self.camb.get_background(cp)
+            print(results.get_Omega('de', 3000))
         elif self.de_model == 'gw':
             a_vals, weff, rho = self.gw.wa(self.omgwh2, n_t=self.n_t, kmin=1E-1, kmax=0.8)
             cp.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()
@@ -604,6 +611,7 @@ class camb(_cosmo):
             results = self.camb.get_background(cambparams)
             delta = results.conformal_time_a1_a2(0.0, 1.0) - results.conformal_time_a1_a2(0.0, 0.2) - \
                     results.conformal_time_a1_a2(0.2, 1.0)
+            print(abs(delta))
             if abs(delta) > 1e-3:
                 print('Problem integrating background')
                 print(args)

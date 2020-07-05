@@ -442,12 +442,12 @@ class camb(_cosmo):
         elif self.de_model == 'fluid_w_a':
             cp.DarkEnergy = self.camb.dark_energy.DarkEnergyFluid()
             cp.DarkEnergy.set_w_a_table(self.a_vals, self.w_vals)
-        elif self.de_model == 'spikes':
-            cp.DarkEnergy = self.camb.dark_energy.AxionEffectiveFluid()
-            cp.DarkEnergy.set_params(beta=6.0, oms=self.amplitude_spikes)
         elif self.de_model == 'ppf_w_a':
             cp.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()
             cp.DarkEnergy.set_w_a_table(self.a_vals, self.w_vals)
+        elif self.de_model == 'spikes':
+            cp.DarkEnergy = self.camb.dark_energy.AxionEffectiveFluid()
+            cp.DarkEnergy.set_params(beta=6.0, oms=self.amplitude_spikes)
         elif self.de_model == 'axion':
             cp.DarkEnergy = self.camb.dark_energy.AxionEffectiveFluid()
             min_om = 0.0
@@ -473,7 +473,6 @@ class camb(_cosmo):
                 if abs(trial_f_ede - self.f_ede) < tolerance:
                     break
             results = self.camb.get_background(cp)
-            print(results.get_Omega('de', 3000))
         elif self.de_model == 'gw':
             a_vals, weff, rho = self.gw.wa(self.omgwh2, n_t=self.n_t, kmin=1E-1, kmax=0.8)
             cp.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()

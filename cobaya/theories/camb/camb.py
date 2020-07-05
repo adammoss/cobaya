@@ -443,7 +443,6 @@ class camb(_cosmo):
             cp.DarkEnergy = self.camb.dark_energy.DarkEnergyFluid()
             cp.DarkEnergy.set_w_a_table(self.a_vals, self.w_vals)
         elif self.de_model == 'spikes':
-            print(self.amplitude_spikes)
             cp.DarkEnergy = self.camb.dark_energy.AxionEffectiveFluid()
             cp.DarkEnergy.set_params(beta=6.0, oms=self.amplitude_spikes)
         elif self.de_model == 'ppf_w_a':
@@ -595,7 +594,6 @@ class camb(_cosmo):
             results = self.camb.get_background(cambparams)
             delta = results.conformal_time_a1_a2(0.0, 1.0) - results.conformal_time_a1_a2(0.0, 0.2) - \
                     results.conformal_time_a1_a2(0.2, 1.0)
-            print(abs(delta))
             if abs(delta) > 1e-3:
                 print('Problem integrating background')
                 print(args)

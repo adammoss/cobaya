@@ -447,7 +447,7 @@ class camb(_cosmo):
             cp.DarkEnergy.set_w_a_table(self.a_vals, self.w_vals)
         elif self.de_model == 'spikes':
             cp.DarkEnergy = self.camb.dark_energy.AxionEffectiveFluid()
-            cp.DarkEnergy.set_params(beta=12.0, oms=self.amplitude_spikes)
+            cp.DarkEnergy.set_params(beta=12.0, oms=self.amplitude_spikes, cs2=self.cs2)
         elif self.de_model == 'axion':
             cp.DarkEnergy = self.camb.dark_energy.AxionEffectiveFluid()
             min_om = 0.0
@@ -547,19 +547,31 @@ class camb(_cosmo):
 
         elif self.de_model == 'spikes':
 
-            pattern = re.compile(r"spike_([0-9]{1,2})+")
             amplitude_spikes = [1.0E-5 for _ in range(30)]
+            pattern = re.compile(r"spike_([0-9]{1,2})+")
             for k, v in list(args.items()):
                 m = re.search(pattern, k)
                 if m is not None:
                     bin = int(m.group(1))
                     amplitude_spikes[bin - 1] = 10**v
                     del args[k]
+            pattern = re.compile(r"spike_linear_([0-9]{1,2})+")
+            for k, v in list(args.items()):
+                m = re.search(pattern, k)
+                if m is not None:
+                    bin = int(m.group(1))
+                    amplitude_spikes[bin - 1] = v
+                    del args[k]
 
             a_spikes = np.logspace(-5, 0, len(amplitude_spikes))
 
             self.amplitude_spikes = np.flip(self.total_density(a_spikes) / self.total_density(1.0) *
                                             np.array(amplitude_spikes))
+            if 'cs2' in args:
+                self.cs2 = args['cs2']
+                del args['cs2']
+            else:
+                self.cs2 = 1.0
 
         elif self.de_model == 'gw':
 
@@ -594,11 +606,8 @@ class camb(_cosmo):
             delta = results.conformal_time_a1_a2(0.0, 1.0) - results.conformal_time_a1_a2(0.0, 0.2) - \
                     results.conformal_time_a1_a2(0.2, 1.0)
             if abs(delta) > 1e-3:
-                print('Problem integrating background')
-                print(args)
-                print(abs(delta))
-                if self.de_model == 'gw' or self.de_model == 'gw_k':
-                    print(self.omgwh2)
+                self.log.info('Problem integrating background')
+                self.log.info(self.states[i_state]["set_args"])
                 return False
             if self.extra_attrs:
                 self.log.debug("Setting attributes of CAMBParams: %r", self.extra_attrs)
@@ -647,6 +656,8 @@ class camb(_cosmo):
 
     def compute(self, _derived=None, cached=True, **params_values_dict):
         lasts = [self.states[i]["last"] for i in range(self.n_states)]
+        self.log.info('Start compute')
+        start_time = time()
         try:
             if not cached:
                 raise StopIteration
@@ -716,6 +727,7 @@ class camb(_cosmo):
         for i in range(self.n_states):
             self.states[i]["last"] -= max(lasts)
         self.states[i_state]["last"] = 1
+        self.log.info('End compute %s' % (time() - start_time))
         return 1 if reused_state else 2
 
     def _get_derived_from_params(self, p, intermediates):

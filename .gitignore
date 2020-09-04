@@ -28,3 +28,5 @@ tests/.ipynb_checkpoints
 .cache
 
 runs*
+
+.DS_Store

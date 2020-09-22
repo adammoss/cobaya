@@ -565,8 +565,8 @@ class camb(_cosmo):
 
             a_spikes = np.logspace(-5, 0, len(amplitude_spikes))
 
-            self.amplitude_spikes = np.flip(self.total_density(a_spikes) / self.total_density(1.0) *
-                                            np.array(amplitude_spikes))
+            self.amplitude_spikes = self.total_density(a_spikes) / self.total_density(1.0) * \
+                                    np.array(amplitude_spikes)
             if 'cs2' in args:
                 self.cs2 = args['cs2']
                 del args['cs2']

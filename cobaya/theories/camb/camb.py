@@ -447,7 +447,7 @@ class camb(_cosmo):
             cp.DarkEnergy.set_w_a_table(self.a_vals, self.w_vals)
         elif self.de_model == 'spikes':
             cp.DarkEnergy = self.camb.dark_energy.AxionEffectiveFluid()
-            cp.DarkEnergy.set_params(beta=12.0, oms=self.amplitude_spikes, cs2=self.cs2)
+            cp.DarkEnergy.set_params(beta=self.beta, oms=self.amplitude_spikes, cs2=self.cs2)
         elif self.de_model == 'axion':
             cp.DarkEnergy = self.camb.dark_energy.AxionEffectiveFluid()
             min_om = 0.0
@@ -547,7 +547,7 @@ class camb(_cosmo):
 
         elif self.de_model == 'spikes':
 
-            amplitude_spikes = [1.0E-5 for _ in range(30)]
+            amplitude_spikes = [1.0E-4 for _ in range(50)]
             pattern = re.compile(r"spike_([0-9]{1,2})+")
             for k, v in list(args.items()):
                 m = re.search(pattern, k)

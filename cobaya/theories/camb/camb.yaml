@@ -25,3 +25,4 @@ theory:
     de_model: fluid
     init_model:
     gw_k:
+    beta: 6.0

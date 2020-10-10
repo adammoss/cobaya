@@ -28,3 +28,4 @@ theory:
     beta: 6.0
     first_spike: 1.0E-5
     num_spikes: 30
+    blocks: null

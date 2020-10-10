@@ -274,13 +274,14 @@ class camb(_cosmo):
             self.gw = GW(max_cycles=30, do_tensor_neutrinos=True)
 
         if self.de_model == 'spikes':
-            # Baseline Plank 2018 + BAO
+            # Baseline marginalised Planck 2018 + lensing + BAO (table 2 of https://arxiv.org/pdf/1807.06209.pdf)
             H0 = 67.66
             ombh2 = 0.02242
             omch2 = 0.11933
+            tau = 0.0561
             a = np.logspace(-6, 0, 1000)
             pars = self.camb.CAMBparams()
-            pars.set_cosmology(H0=H0, ombh2=ombh2, omch2=omch2, mnu=0.06, omk=0, tau=0.06)
+            pars.set_cosmology(H0=H0, ombh2=ombh2, omch2=omch2, mnu=0.06, omk=0, tau=tau)
             results_lcdm = self.camb.get_background(pars)
             densities_lcdm = results_lcdm.get_background_densities(a)
             self.omega_lambda = densities_lcdm['de'][-1] / densities_lcdm['tot'][-1]
@@ -548,7 +549,9 @@ class camb(_cosmo):
 
         elif self.de_model == 'spikes':
 
-            amplitude_spikes = [1.0E-4 for _ in range(self.num_spikes)]
+            default_amplitude = 1.0E-4
+
+            amplitude_spikes = [default_amplitude for _ in range(self.num_spikes)]
             pattern = re.compile(r"spike_([0-9]{1,2})+")
             for k, v in list(args.items()):
                 m = re.search(pattern, k)
@@ -566,8 +569,18 @@ class camb(_cosmo):
 
             a_spikes = np.logspace(-5, 0, len(amplitude_spikes))
 
+            if self.blocks and len(self.blocks) > 0:
+                self.amplitude_spikes = default_amplitude * np.ones(a_spikes.shape)
+                last_block = 0
+                for i, block in enumerate(self.blocks):
+                    self.amplitude_spikes[last_block:last_block + block] = amplitude_spikes[i]
+                    last_block += block
+            else:
+                self.amplitude_spikes = np.array(amplitude_spikes)
+
             self.amplitude_spikes = self.total_density(a_spikes) / self.total_density(1.0) * \
-                                    np.array(amplitude_spikes)
+                                    self.amplitude_spikes
+
             if 'cs2' in args:
                 self.cs2 = args['cs2']
                 del args['cs2']

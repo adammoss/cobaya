@@ -46,7 +46,8 @@ class nn(Sampler):
         try:
             import nnest
             self.nnest = nnest
-        except ImportError:
+        except ImportError as e:
+            print(e)
             raise LoggedError(
                 self.log, "Couldn't find the nnest python interface. "
                           "Make sure that you have compiled it, and that you either\n"
@@ -59,7 +60,7 @@ class nn(Sampler):
                          len(self.model.prior) + len(self.model.likelihood._likelihoods))
         if self.logzero is None:
             self.logzero = np.nan_to_num(-np.inf)
-        for p in ["nlive", "nprior"]:
+        for p in ["nlive", "mcmc_steps"]:
             setattr(self, p, read_dnumber(getattr(self, p), self.nDims, dtype=int))
         # Fill the automatic ones
         if getattr(self, "feedback", None) is None:
@@ -164,7 +165,7 @@ class nn(Sampler):
 
         nn.run(dlogz=self.precision_criterion,
                volume_switch=volume_switch,
-               mcmc_batch_size=1)
+               mcmc_steps=self.mcmc_steps)
 
 # Installation routines ##################################################################
 

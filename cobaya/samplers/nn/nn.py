@@ -22,6 +22,8 @@ from cobaya.mpi import get_mpi_comm
 from cobaya.mpi import am_single_or_primary_process, more_than_one_process, sync_processes
 from cobaya.log import LoggedError
 from cobaya.install import download_github_release
+from cobaya.conventions import _weight, _chi2, _minuslogpost, _minuslogprior
+from cobaya.conventions import _separator
 from cobaya.yaml import yaml_dump_file
 
 
@@ -55,9 +57,14 @@ class nn(Sampler):
                           " (b) install the Python interface globally with\n"
                           "     '/path/to/nnest/python setup.py install --user'")
         # Prepare arguments and settings
+        self.sampled_params = list(self.model.parameterization.sampled_params())
+        self.derived_params = list(self.model.parameterization.derived_params())
+        self.n_sampled = len(self.sampled_params)
+        self.n_derived = len(self.derived_params)
+        self.n_priors = len(self.model.prior)
+        self.n_likes = len(self.model.likelihood._likelihoods)
         self.nDims = self.model.prior.d()
-        self.nDerived = (len(self.model.parameterization.derived_params()) +
-                         len(self.model.prior) + len(self.model.likelihood._likelihoods))
+        self.nDerived = self.n_derived + self.n_priors + self.n_likes + 2
         if self.logzero is None:
             self.logzero = np.nan_to_num(-np.inf)
         for p in ["nlive", "mcmc_steps"]:
@@ -121,13 +128,18 @@ class nn(Sampler):
         # Volume of the prior domain
         self.logvolume = np.log(np.prod(scales))
         self.last_point_callback = 0
-        self.n_sampled = len(self.model.parameterization.sampled_params())
-        self.n_derived = len(self.model.parameterization.derived_params())
-        self.n_priors = len(self.model.prior)
-        self.n_likes = len(self.model.likelihood._likelihoods)
         with open(os.path.join(self.base_dir, 'params.json'), 'w') as f:
             f.write(json.dumps([self.model.parameterization.sampled_params_info(),
                                 self.model.parameterization.derived_params()]))
+        minuslogprior_names = [
+            _minuslogprior + _separator + piname for piname in list(self.model.prior)]
+        chi2_names = [_chi2 + _separator + likname for likname in self.model.likelihood]
+        columns = list(self.sampled_params)
+        # Just in case: ignore derived names as likelihoods: would be duplicate cols
+        columns += [p for p in self.derived_params if p not in chi2_names]
+        columns += [_minuslogprior] + minuslogprior_names
+        columns += [_chi2] + chi2_names
+        self.columns = columns
 
     def run(self):
 
@@ -135,11 +147,12 @@ class nn(Sampler):
             logl, der = [], []
             for p in params_values:
                 logposterior, logpriors, loglikes, derived = (self.model.logposterior(p))
-                if len(derived) != len(self.model.parameterization.derived_params()):
-                    derived = np.full(len(self.model.parameterization.derived_params()), np.nan)
-                if len(loglikes) != len(self.model.likelihood._likelihoods):
-                    loglikes = np.full(len(self.model.likelihood._likelihoods), np.nan)
-                derived = list(derived) + list(logpriors) + list(loglikes)
+                if len(derived) != self.n_derived:
+                    derived = np.full(self.n_derived, np.nan)
+                if len(loglikes) != self.n_likes:
+                    loglikes = np.full(self.n_likes, np.nan)
+                derived = list(derived) + [-sum(logpriors)] + list(-np.array(logpriors)) + [sum(-2*loglikes)] + \
+                          list(-2*loglikes)
                 # Don't want the contribution from the parameter prior volume, but do want e.g A_planck prior
                 logl.append(max(logposterior + self.logvolume, 0.99 * self.logzero))
                 der.append(derived)
@@ -156,7 +169,8 @@ class nn(Sampler):
                                       log_dir=self.base_dir,
                                       num_live_points=self.nlive,
                                       num_derived=self.nDerived,
-                                      num_slow=self.num_slow)
+                                      num_slow=self.num_slow,
+                                      param_names=self.columns)
 
         if self.num_slow > 0:
             volume_switch = 1.0 / (5 * self.num_slow)

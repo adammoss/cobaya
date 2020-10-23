@@ -5,7 +5,6 @@ export PATH="$HOME/miniconda/bin:$PATH"
 conda config --set always_yes yes --set changeps1 no
 conda create -q -n cobaya-env python=3.7 scipy matplotlib cython PyYAML pytest pytest-forked flaky
 source activate cobaya-env
-pip install mpi4py
 # Install ifort
 # Add to .bashrc
 #source /opt/intel/bin/compilervars.sh intel64
@@ -13,6 +12,7 @@ pip install mpi4py
 #source activate cobaya-env
 # Install cobaya
 # cd ~
+# pip install mpi4py
 # pip install cobaya
 # cobaya-install cosmo --packages-path cobaya_packages
 # Install modified CAMB and cobaya

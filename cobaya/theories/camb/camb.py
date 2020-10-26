@@ -567,7 +567,7 @@ class camb(_cosmo):
                     amplitude_spikes[bin - 1] = v
                     del args[k]
 
-            a_spikes = np.logspace(-5, 0, len(amplitude_spikes))
+            a_spikes = np.logspace(np.log10(self.first_spike), 0, len(amplitude_spikes))
 
             if self.blocks and len(self.blocks) > 0:
                 self.amplitude_spikes = default_amplitude * np.ones(a_spikes.shape)

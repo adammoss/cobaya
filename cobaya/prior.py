@@ -348,6 +348,9 @@ import numpy as np
 import numbers
 from copy import deepcopy
 from types import MethodType
+import re
+import sys
+from scipy.interpolate import CubicSpline
 
 # Local
 from cobaya.conventions import _prior, _p_ref, _prior_1d_name
@@ -358,13 +361,23 @@ from cobaya.log import LoggedError, HasLogger
 # Fast logpdf for uniforms and norms (do not understand nan masks!)
 fast_logpdfs = {"uniform": _fast_uniform_logpdf, "norm": _fast_norm_logpdf}
 
+# AJM - smoothness prior stuff
+
+
+def omega(a, ac, amp, beta=6):
+    return amp * ((2 * ac**beta)/(a**beta+ac**beta))**(6/beta)
+
+
+def wa(a, ac, beta=6):
+    return 2 / (1 + (ac/a)**beta) - 1
+
 
 class Prior(HasLogger):
     """
     Class managing the prior and reference pdf's.
     """
 
-    def __init__(self, parameterization, info_prior=None):
+    def __init__(self, parameterization, info_prior=None, info_theory=None):
         """
         Initializes the prior and reference pdf's from the input information.
         """
@@ -440,6 +453,29 @@ class Prior(HasLogger):
                                .difference(self.external[name]["constant_params"])))
             self.log.warning("External prior '%s' loaded. "
                              "Mind that it might not be normalized!", name)
+        if info_theory is not None and info_theory.get('de_model', None) == 'spikes':
+            self.a_spikes = np.logspace(np.log10(info_theory['first_spike']), 0, info_theory['num_spikes'])
+            # Baseline marginalised Planck 2018 + lensing + BAO (table 2 of https://arxiv.org/pdf/1807.06209.pdf)
+            if info_theory['path'] is not None:
+                sys.path.insert(0, info_theory['path'])
+            import camb
+            H0 = 67.66
+            ombh2 = 0.02242
+            omch2 = 0.11933
+            tau = 0.0561
+            a = np.logspace(-6, 0, 1000)
+            pars = camb.CAMBparams()
+            pars.set_cosmology(H0=H0, ombh2=ombh2, omch2=omch2, mnu=0.06, omk=0, tau=tau)
+            results_lcdm = camb.get_background(pars)
+            densities_lcdm = results_lcdm.get_background_densities(a)
+            total_density = CubicSpline(a, densities_lcdm['tot'] / a ** 4)
+            self.total_density_norm = total_density(self.a_spikes) / total_density(1.0)
+        else:
+            self.a_spikes = None
+        if info_theory is not None and info_theory.get('prior_smoothing', 0.0):
+            self.smoothing = info_theory.get('prior_smoothing', 0.0)
+        else:
+            self.smoothing = 0.0
 
     def d(self):
         """
@@ -451,10 +487,12 @@ class Prior(HasLogger):
     # Not very useful, except for getting the prior names as list(self)
     # Created for consistency with likelihoods
     def __iter__(self):
-        return (p for p in [_prior_1d_name] + list(self.external))
+        # AJM - add smoothing
+        return (p for p in [_prior_1d_name] + list(self.external) + ['prior_smooth'])
 
     def __len__(self):
-        return 1 + len(self.external)
+        # AJM - add smoothing
+        return 1 + len(self.external) + 1
 
     def bounds(self, confidence_for_unbounded=1):
         """
@@ -518,6 +556,7 @@ class Prior(HasLogger):
         self.log.debug("Evaluating prior at %r", x)
         logps = [
                     sum([pdf.logpdf(xi) for pdf, xi in zip(self.pdf, x)])] + self.logps_external(x)
+        logps += self.logps_smooth(x)
         self.log.debug("Got logpriors = %r", logps)
         return logps
 
@@ -535,6 +574,37 @@ class Prior(HasLogger):
         return [ext["logp"](**dict({p: x[i] for p, i in ext["params"].items()},
                                    **ext["constant_params"]))
                 for ext in self.external.values()]
+
+    def logps_smooth(self, x):
+        if self.a_spikes is not None:
+            param_dict = dict(zip(self.params, x))
+            amplitude_spikes = [1.0E-4 for _ in range(len(self.a_spikes))]
+            pattern = re.compile(r"spike_([0-9]{1,2})+")
+            for k, v in list(param_dict.items()):
+                m = re.search(pattern, k)
+                if m is not None:
+                    bin = int(m.group(1))
+                    amplitude_spikes[bin - 1] = 10 ** v
+            pattern = re.compile(r"spike_linear_([0-9]{1,2})+")
+            for k, v in list(param_dict.items()):
+                m = re.search(pattern, k)
+                if m is not None:
+                    bin = int(m.group(1))
+                    amplitude_spikes[bin - 1] = v
+            rho_de = 0
+            w_de = 0
+            amplitude_spikes = amplitude_spikes * self.total_density_norm
+            for i in range(len(self.a_spikes)):
+                rho = omega(self.a_spikes, self.a_spikes[i], amplitude_spikes[i])
+                rho_de += rho
+                w_de += rho * wa(self.a_spikes, self.a_spikes[i])
+            w_de = w_de / rho_de
+            rho_de = rho_de / self.total_density_norm
+            smooth_spline = CubicSpline(np.log(self.a_spikes), w_de)
+            smooth_prior = -self.smoothing * np.sum(smooth_spline(np.log(self.a_spikes), 2) ** 2)
+        else:
+            smooth_prior = 0
+        return [smooth_prior]
 
     def covmat(self, ignore_external=False):
         """

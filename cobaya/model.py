@@ -86,7 +86,8 @@ class Model(HasLogger):
                 self._updated_info[k] = deepcopy_where_possible(v)
         self.parameterization = Parameterization(
             self._updated_info[_params], allow_renames=allow_renames)
-        self.prior = Prior(self.parameterization, self._updated_info.get(_prior, None))
+        self.prior = Prior(self.parameterization, self._updated_info.get(_prior, None),
+                           list(self._updated_info.get(_theory).values())[0])
         self.likelihood = Likelihood(
             self._updated_info[_likelihood], self.parameterization,
             self._updated_info.get(_theory), modules=modules, timing=timing)

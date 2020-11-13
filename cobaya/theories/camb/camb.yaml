@@ -29,4 +29,3 @@ theory:
     first_spike: 1.0E-5
     num_spikes: 30
     blocks: null
-    prior_smoothing: 0.0

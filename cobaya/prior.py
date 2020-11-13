@@ -423,36 +423,39 @@ class Prior(HasLogger):
                                   "Please use a different one.", _prior_1d_name)
             self.log.debug(
                 "Loading external prior '%s' from: '%s'", name, info_prior[name])
-            self.external[name] = (
-                {"logp": get_external_function(info_prior[name], name=name)})
-            self.external[name]["argspec"] = (
-                getargspec(self.external[name]["logp"]))
-            self.external[name]["params"] = {
-                p: list(sampled_params_info).index(p)
-                for p in self.external[name]["argspec"].args if p in sampled_params_info}
-            self.external[name]["constant_params"] = {
-                p: constant_params_info[p]
-                for p in self.external[name]["argspec"].args if p in constant_params_info}
-            if (not (len(self.external[name]["params"]) +
-                     len(self.external[name]["constant_params"]))):
-                raise LoggedError(
-                    self.log, "None of the arguments of the external prior '%s' "
-                    "are known *fixed* or *sampled* parameters. "
-                    "This prior recognizes: %r", name, self.external[name]["argspec"].args)
-            params_without_default = self.external[name]["argspec"].args[
-                                     :(len(self.external[name]["argspec"].args) -
-                                       len(self.external[name]["argspec"].defaults or []))]
-            if not all([(p in self.external[name]["params"] or
-                         p in self.external[name]["constant_params"])
-                        for p in params_without_default]):
-                raise LoggedError(
-                    self.log, "Some of the arguments of the external prior '%s' cannot "
-                    "be found and don't have a default value either: %s",
-                    name, list(set(params_without_default)
-                               .difference(self.external[name]["params"])
-                               .difference(self.external[name]["constant_params"])))
-            self.log.warning("External prior '%s' loaded. "
-                             "Mind that it might not be normalized!", name)
+            if name == 'smooth':
+                self.smoothing = info_prior[name]
+            else:
+                self.external[name] = (
+                    {"logp": get_external_function(info_prior[name], name=name)})
+                self.external[name]["argspec"] = (
+                    getargspec(self.external[name]["logp"]))
+                self.external[name]["params"] = {
+                    p: list(sampled_params_info).index(p)
+                    for p in self.external[name]["argspec"].args if p in sampled_params_info}
+                self.external[name]["constant_params"] = {
+                    p: constant_params_info[p]
+                    for p in self.external[name]["argspec"].args if p in constant_params_info}
+                if (not (len(self.external[name]["params"]) +
+                         len(self.external[name]["constant_params"]))):
+                    raise LoggedError(
+                        self.log, "None of the arguments of the external prior '%s' "
+                        "are known *fixed* or *sampled* parameters. "
+                        "This prior recognizes: %r", name, self.external[name]["argspec"].args)
+                params_without_default = self.external[name]["argspec"].args[
+                                         :(len(self.external[name]["argspec"].args) -
+                                           len(self.external[name]["argspec"].defaults or []))]
+                if not all([(p in self.external[name]["params"] or
+                             p in self.external[name]["constant_params"])
+                            for p in params_without_default]):
+                    raise LoggedError(
+                        self.log, "Some of the arguments of the external prior '%s' cannot "
+                        "be found and don't have a default value either: %s",
+                        name, list(set(params_without_default)
+                                   .difference(self.external[name]["params"])
+                                   .difference(self.external[name]["constant_params"])))
+                self.log.warning("External prior '%s' loaded. "
+                                 "Mind that it might not be normalized!", name)
         if info_theory is not None and info_theory.get('de_model', None) == 'spikes':
             self.a_spikes = np.logspace(np.log10(info_theory['first_spike']), 0, info_theory['num_spikes'])
             # Baseline marginalised Planck 2018 + lensing + BAO (table 2 of https://arxiv.org/pdf/1807.06209.pdf)
@@ -472,10 +475,6 @@ class Prior(HasLogger):
             self.total_density_norm = total_density(self.a_spikes) / total_density(1.0)
         else:
             self.a_spikes = None
-        if info_theory is not None and info_theory.get('prior_smoothing', 0.0):
-            self.smoothing = info_theory.get('prior_smoothing', 0.0)
-        else:
-            self.smoothing = 0.0
 
     def d(self):
         """
@@ -488,11 +487,17 @@ class Prior(HasLogger):
     # Created for consistency with likelihoods
     def __iter__(self):
         # AJM - add smoothing
-        return (p for p in [_prior_1d_name] + list(self.external) + ['prior_smooth'])
+        if self.smoothing is not None:
+            return (p for p in [_prior_1d_name] + list(self.external) + ['prior_smooth'])
+        else:
+            return (p for p in [_prior_1d_name] + list(self.external))
 
     def __len__(self):
         # AJM - add smoothing
-        return 1 + len(self.external) + 1
+        if self.smoothing is not None:
+            return 1 + len(self.external) + 1
+        else:
+            return 1 + len(self.external)
 
     def bounds(self, confidence_for_unbounded=1):
         """
@@ -556,7 +561,8 @@ class Prior(HasLogger):
         self.log.debug("Evaluating prior at %r", x)
         logps = [
                     sum([pdf.logpdf(xi) for pdf, xi in zip(self.pdf, x)])] + self.logps_external(x)
-        logps += self.logps_smooth(x)
+        if self.smoothing is not None:
+            logps += [self.logps_smooth(x)]
         self.log.debug("Got logpriors = %r", logps)
         return logps
 
@@ -604,7 +610,7 @@ class Prior(HasLogger):
             smooth_prior = -self.smoothing * np.sum(smooth_spline(np.log(self.a_spikes), 2) ** 2)
         else:
             smooth_prior = 0
-        return [smooth_prior]
+        return smooth_prior
 
     def covmat(self, ignore_external=False):
         """

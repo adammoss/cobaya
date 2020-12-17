@@ -273,7 +273,7 @@ class camb(_cosmo):
             from camb.gw import GW
             self.gw = GW(max_cycles=30, do_tensor_neutrinos=True)
 
-        if self.de_model == 'spikes':
+        if self.de_model in ['spikes', 'spikes_w_a']:
             # Baseline marginalised Planck 2018 + lensing + BAO (table 2 of https://arxiv.org/pdf/1807.06209.pdf)
             H0 = 67.66
             ombh2 = 0.02242
@@ -286,7 +286,7 @@ class camb(_cosmo):
             densities_lcdm = results_lcdm.get_background_densities(a)
             self.omega_lambda = densities_lcdm['de'][-1] / densities_lcdm['tot'][-1]
             self.total_density = CubicSpline(a, densities_lcdm['tot'] / a ** 4)
-            self.a_vals = np.logspace(-6, 0, 1000)
+            self.a_vals = a
 
         if self.init_model is not None:
             self.log.info("Using initial power model: " + self.init_model)
@@ -422,6 +422,9 @@ class camb(_cosmo):
 
         used_params = set()
 
+        def omega(a, ac, amp, beta=6):
+            return amp * ((2 * ac ** beta) / (a ** beta + ac ** beta)) ** (6 / beta)
+
         def do_set(setter):
             kwargs = {k: params[k] for k in getargspec(setter).args[1:] if k in params}
             used_params.update(kwargs.keys())
@@ -446,10 +449,25 @@ class camb(_cosmo):
         elif self.de_model == 'ppf_w_a':
             cp.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()
             cp.DarkEnergy.set_w_a_table(self.a_vals, self.w_vals)
-        elif self.de_model == 'spikes':
+        elif self.de_model in ['spikes', 'spikes_w_a']:
             cp.DarkEnergy = self.camb.dark_energy.AxionEffectiveFluid()
             cp.DarkEnergy.set_params(beta=self.beta, oms=self.amplitude_spikes,
                                      cs2=self.cs2, first_spike=self.first_spike)
+            if self.de_model == 'spikes_w_a':
+                do_set(cp.set_cosmology)
+                results = self.camb.get_background(cp)
+                densities = results.get_background_densities(self.a_vals)
+                f_de = densities['de'] / densities['tot']
+                rho_de = f_de[-1]
+                for i in range(len(self.a_spikes)):
+                    rho = np.array([omega(a, self.a_spikes[i], self.amplitude_spikes[i], beta=self.beta) for a in self.a_vals])
+                    rho_de += rho
+                cs = CubicSpline(self.a_vals, rho_de)
+                w_de = - 1 / 3 * self.a_vals / cs(self.a_vals) * cs(self.a_vals, 1) - 1
+                w_de = np.clip(w_de, -1, 1)
+                cp.DarkEnergy = self.camb.dark_energy.DarkEnergyFluid()
+                cp.DarkEnergy.set_w_a_table(self.a_vals, w_de)
+                cp.DarkEnergy.cs2 = self.cs2
         elif self.de_model == 'axion':
             cp.DarkEnergy = self.camb.dark_energy.AxionEffectiveFluid()
             min_om = 0.0
@@ -547,7 +565,7 @@ class camb(_cosmo):
             self.w_n = args['w_n']
             del args['w_n']
 
-        elif self.de_model == 'spikes':
+        elif self.de_model in ['spikes', 'spikes_w_a']:
 
             default_amplitude = 1.0E-4
 
@@ -567,10 +585,10 @@ class camb(_cosmo):
                     amplitude_spikes[bin - 1] = v
                     del args[k]
 
-            a_spikes = np.logspace(np.log10(self.first_spike), 0, len(amplitude_spikes))
+            self.a_spikes = np.logspace(np.log10(self.first_spike), 0, len(amplitude_spikes))
 
             if self.blocks and len(self.blocks) > 0:
-                self.amplitude_spikes = default_amplitude * np.ones(a_spikes.shape)
+                self.amplitude_spikes = default_amplitude * np.ones(self.a_spikes.shape)
                 last_block = 0
                 for i, block in enumerate(self.blocks):
                     self.amplitude_spikes[last_block:last_block + block] = amplitude_spikes[i]
@@ -578,7 +596,7 @@ class camb(_cosmo):
             else:
                 self.amplitude_spikes = np.array(amplitude_spikes)
 
-            self.amplitude_spikes = self.total_density(a_spikes) / self.total_density(1.0) * \
+            self.amplitude_spikes = self.total_density(self.a_spikes) / self.total_density(1.0) * \
                                     self.amplitude_spikes
 
             if 'cs2' in args:

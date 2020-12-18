@@ -125,6 +125,7 @@ from copy import deepcopy
 from typing import NamedTuple, Any
 import numpy as np
 import re
+import time
 from inspect import getfullargspec
 from scipy.interpolate import CubicSpline
 # Local
@@ -1091,6 +1092,7 @@ class CambTransfers(HelperTheory):
             return False
         # Compute the transfer functions
         try:
+            start_time = time.time()
             if self.non_linear_sources:
                 # only need time sources if non-linear lensing or other non-linear
                 # sources. Not needed just for non-linear PK.
@@ -1100,6 +1102,7 @@ class CambTransfers(HelperTheory):
                 results = self.camb.get_transfer_functions(camb_params) \
                     if self.needs_perts else self.camb.get_background(camb_params)
             state['results'] = (camb_params, results)
+            print(time.time() - start_time)
         except self.camb.baseconfig.CAMBError as e:
             if self.stop_at_error:
                 self.log.error(

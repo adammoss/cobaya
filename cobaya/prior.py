@@ -467,7 +467,7 @@ class Prior(HasLogger):
                                    .difference(opts["constant_params"])))
                 self.mpi_warning("External prior '%s' loaded. "
                                  "Mind that it might not be normalized!", name)
-        if info_theory is not None and info_theory.get('de_model', None) == 'spikes':
+        if info_theory is not None and info_theory.get('de_model', None) in ['spikes', 'spikes_w_a']:
             self.a_spikes = np.logspace(np.log10(info_theory['first_spike']), 0, info_theory['num_spikes'])
             # Baseline marginalised Planck 2018 + lensing + BAO (table 2 of https://arxiv.org/pdf/1807.06209.pdf)
             if info_theory['path'] is not None:

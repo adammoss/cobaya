@@ -468,6 +468,8 @@ class Prior(HasLogger):
                                    .difference(opts["constant_params"])))
                 self.mpi_warning("External prior '%s' loaded. "
                                  "Mind that it might not be normalized!", name)
+        # AJM
+        self.constant_params_info = constant_params_info
         try:
             de_model = info_theory['camb']['de_model']
         except:
@@ -609,6 +611,7 @@ class Prior(HasLogger):
     def logps_smooth(self, x):
         if self.a_spikes is not None:
             param_dict = dict(zip(self.params, x))
+            param_dict.update(self.constant_params_info)
             amplitude_spikes = [1.0E-4 for _ in range(len(self.a_spikes))]
             pattern = re.compile(r"spike_([0-9]{1,2})+")
             for k, v in list(param_dict.items()):

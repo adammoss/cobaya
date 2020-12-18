@@ -124,6 +124,9 @@ import ctypes
 from copy import deepcopy
 from typing import NamedTuple, Any
 import numpy as np
+import re
+from inspect import getfullargspec
+from scipy.interpolate import CubicSpline
 # Local
 from cobaya.theories._cosmo import BoltzmannBase
 from cobaya.log import LoggedError
@@ -132,6 +135,10 @@ from cobaya.tools import getfullargspec, get_class_methods, get_properties, load
     VersionCheckError, str_to_list
 from cobaya.theory import HelperTheory
 from cobaya.conventions import _requires
+
+
+def omega(a, ac, amp, beta=6):
+    return amp * ((2 * ac ** beta) / (a ** beta + ac ** beta)) ** (6 / beta)
 
 
 # Result collector
@@ -204,6 +211,31 @@ class camb(BoltzmannBase):
         self._transfer_requires = [p for p in self.requires if
                                    p not in self.get_can_support_params()]
         self.requires = [p for p in self.requires if p not in self._transfer_requires]
+
+        self.log.info("Using DE model: " + self.de_model)
+
+        if self.de_model == 'gw' or self.de_model == 'gw_k':
+            from camb.gw import GW
+            self.gw = GW(max_cycles=30, do_tensor_neutrinos=True)
+
+        if self.de_model in ['spikes', 'spikes_w_a']:
+            # Baseline marginalised Planck 2018 + lensing + BAO (table 2 of https://arxiv.org/pdf/1807.06209.pdf)
+            H0 = 67.66
+            ombh2 = 0.02242
+            omch2 = 0.11933
+            tau = 0.0561
+            a = np.logspace(-6, 0, 1000)
+            pars = self.camb.CAMBparams()
+            pars.set_cosmology(H0=H0, ombh2=ombh2, omch2=omch2, mnu=0.06, omk=0, tau=tau)
+            results_lcdm = self.camb.get_background(pars)
+            densities_lcdm = results_lcdm.get_background_densities(a)
+            self.omega_lambda = densities_lcdm['de'][-1] / densities_lcdm['tot'][-1]
+            self.total_density = CubicSpline(a, densities_lcdm['tot'] / a ** 4)
+            self.a_vals = a
+
+        if self.init_model is not None:
+            self.log.info("Using initial power model: " + self.init_model)
+
         self.log.info("Initialized!")
 
     def _extract_params(self, set_func):
@@ -224,7 +256,10 @@ class camb(BoltzmannBase):
             self.extra_attrs["WantTensors"] = True
 
     def get_can_support_params(self):
-        return self.power_params + self.nonlin_params
+        return self.power_params + self.nonlin_params + self.extra_params()
+
+    def extra_params(self):
+        return ['spike_%s' % i for i in range(1, 50)]
 
     def get_allow_agnostic(self):
         return False
@@ -603,12 +638,227 @@ class camb(BoltzmannBase):
     def get_version(self):
         return self.camb.__version__
 
+    def set_camb_params(self, cp=None, verbose=False, **params):
+
+        if 'ALens' in params:
+            raise ValueError('Use Alens not ALens')
+
+        if cp is None:
+            cp = self.camb.CAMBparams()
+        else:
+            assert isinstance(cp, self.camb.CAMBparams), "cp should be an instance of CAMBparams"
+
+        used_params = set()
+
+        def do_set(setter):
+            kwargs = {kk: params[kk] for kk in getfullargspec(setter).args[1:] if kk in params}
+            used_params.update(kwargs)
+            if kwargs:
+                if verbose:
+                    logging.warning('Calling %s(**%s)' % (setter.__name__, kwargs))
+                setter(**kwargs)
+
+        # Note order is important: must call DarkEnergy.set_params before set_cosmology if setting theta rather than H0
+        # set_classes allows redefinition of the classes used, so must be called before setting class parameters
+        do_set(cp.set_accuracy)
+        do_set(cp.set_classes)
+        if self.de_model == 'fluid':
+            cp.DarkEnergy = self.camb.dark_energy.DarkEnergyFluid()
+            do_set(cp.DarkEnergy.set_params)
+        elif self.de_model == 'ppf':
+            cp.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()
+            do_set(cp.DarkEnergy.set_params)
+        elif self.de_model == 'fluid_w_a':
+            cp.DarkEnergy = self.camb.dark_energy.DarkEnergyFluid()
+            cp.DarkEnergy.set_w_a_table(self.a_vals, self.w_vals)
+        elif self.de_model == 'ppf_w_a':
+            cp.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()
+            cp.DarkEnergy.set_w_a_table(self.a_vals, self.w_vals)
+        elif self.de_model in ['spikes', 'spikes_w_a']:
+            cp.DarkEnergy = self.camb.dark_energy.AxionEffectiveFluid()
+            cp.DarkEnergy.set_params(beta=self.beta, oms=self.amplitude_spikes,
+                                     cs2=self.cs2, first_spike=self.first_spike)
+            if self.de_model == 'spikes_w_a':
+                do_set(cp.set_cosmology)
+                results = self.camb.get_background(cp)
+                densities = results.get_background_densities(self.a_vals)
+                f_de = densities['de'] / densities['tot']
+                rho_de = f_de[-1]
+                for i in range(len(self.a_spikes)):
+                    rho = np.array(
+                        [omega(a, self.a_spikes[i], self.amplitude_spikes[i], beta=self.beta) for a in self.a_vals])
+                    rho_de += rho
+                cs = CubicSpline(self.a_vals, rho_de)
+                w_de = - 1 / 3 * self.a_vals / cs(self.a_vals) * cs(self.a_vals, 1) - 1
+                w_de = np.clip(w_de, -1, 1)
+                cp.DarkEnergy = self.camb.dark_energy.DarkEnergyFluid()
+                cp.DarkEnergy.set_w_a_table(self.a_vals, w_de)
+                cp.DarkEnergy.cs2 = self.cs2
+        elif self.de_model == 'axion':
+            cp.DarkEnergy = self.camb.dark_energy.AxionEffectiveFluid()
+            min_om = 0.0
+            max_om = 0.0001
+            max_iter = 100
+            tolerance = 0.00001
+            for i in range(max_iter):
+                trial_om = (min_om + max_om) / 2
+                cp.DarkEnergy.set_params(self.w_n, trial_om, self.ac)
+                do_set(cp.set_cosmology)
+                try:
+                    results = self.camb.get_background(cp)
+                except:
+                    max_om = trial_om
+                    continue
+                trial_f_ede = results.get_Omega('de', 1 / self.ac - 1)
+                if trial_f_ede > self.f_ede:
+                    max_om = trial_om
+                else:
+                    min_om = trial_om
+                if i == max_iter - 1:
+                    raise ValueError('Max iterations exceeded')
+                if abs(trial_f_ede - self.f_ede) < tolerance:
+                    break
+            results = self.camb.get_background(cp)
+        elif self.de_model == 'gw':
+            a_vals, weff, rho = self.gw.wa(self.omgwh2, n_t=self.n_t, kmin=1E-1, kmax=0.8)
+            cp.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()
+            cp.DarkEnergy.set_w_a_table(a_vals, weff, rho=rho)
+        elif self.de_model == 'gw_k':
+            a_vals, weff, rho = self.gw.wa(self.omgwh2, k=self.gw_k)
+            cp.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()
+            cp.DarkEnergy.set_w_a_table(a_vals, weff, rho=rho)
+        else:
+            raise ValueError('No valid DE model')
+        do_set(cp.set_cosmology)
+        do_set(cp.set_matter_power)
+        do_set(cp.set_for_lmax)
+        if self.init_model == 'tensor_spline':
+            cp.set_initial_power_function(lambda k, As, ns: As * (k / 0.05) ** (ns - 1),
+                                          lambda k, *args: np.zeros(k.shape),
+                                          args=(self.As, self.ns), effective_ns_for_nonlinear=0.96)
+            nbins = len(self.kbins)
+
+            def pk(k):
+                idx = int(nbins * ((np.log10(k) - self.k_t_min) / (self.k_t_max - self.k_t_min)))
+                idx = max(idx, 0)
+                idx = min(idx, nbins - 1)
+                return 10 ** self.kbins[idx]
+
+            ks = np.logspace(np.log10(1e-6), np.log10(2), 100)
+            pk_vals = np.array([pk(k) for k in ks])
+            pk_vals = pk_vals.astype(np.float64)
+            cp.InitPower.set_tensor_table(ks, pk_vals)
+            cp.WantTensors = True
+        else:
+            do_set(cp.InitPower.set_params)
+            if cp.InitPower.has_tensors():
+                cp.WantTensors = True
+        do_set(cp.NonLinearModel.set_params)
+
+        unused_params = set(params) - used_params
+        if unused_params:
+            for k in unused_params:
+                obj = cp
+                if '.' in k:
+                    parts = k.split('.')
+                    for p in parts[:-1]:
+                        obj = getattr(obj, p)
+                    par = parts[-1]
+                else:
+                    par = k
+                if hasattr(obj, par):
+                    setattr(obj, par, params[k])
+                else:
+                    raise self.camb.CAMBUnknownArgumentError("Unrecognized parameter: %s" % k)
+        return cp
+
     def set(self, params_values_dict, state):
         # Prepare parameters to be passed: this is called from the CambTransfers instance
         args = {self.translate_param(p): v for p, v in params_values_dict.items()}
         # Generate and save
         self.log.debug("Setting parameters: %r and %r",
                        dict(args), dict(self.extra_args))
+
+        # AJM
+
+        if self.de_model == 'axion':
+
+            self.f_ede = args['f_ede']
+            del args['f_ede']
+            self.ac = 10 ** args['logac']
+            del args['logac']
+            self.w_n = args['w_n']
+            del args['w_n']
+
+        elif self.de_model in ['spikes', 'spikes_w_a']:
+
+            default_amplitude = 1.0E-4
+
+            amplitude_spikes = [default_amplitude for _ in range(self.num_spikes)]
+            pattern = re.compile(r"spike_([0-9]{1,2})+")
+            for k, v in list(args.items()):
+                m = re.search(pattern, k)
+                if m is not None:
+                    bin = int(m.group(1))
+                    amplitude_spikes[bin - 1] = 10 ** v
+                    del args[k]
+            pattern = re.compile(r"spike_linear_([0-9]{1,2})+")
+            for k, v in list(args.items()):
+                m = re.search(pattern, k)
+                if m is not None:
+                    bin = int(m.group(1))
+                    amplitude_spikes[bin - 1] = v
+                    del args[k]
+
+            self.a_spikes = np.logspace(np.log10(self.first_spike), 0, len(amplitude_spikes))
+
+            if self.blocks and len(self.blocks) > 0:
+                self.amplitude_spikes = default_amplitude * np.ones(self.a_spikes.shape)
+                last_block = 0
+                for i, block in enumerate(self.blocks):
+                    self.amplitude_spikes[last_block:last_block + block] = amplitude_spikes[i]
+                    last_block += block
+            else:
+                self.amplitude_spikes = np.array(amplitude_spikes)
+
+            self.amplitude_spikes = self.total_density(self.a_spikes) / self.total_density(1.0) * \
+                                    self.amplitude_spikes
+
+            if 'cs2' in args:
+                self.cs2 = args['cs2']
+                del args['cs2']
+            else:
+                self.cs2 = 1.0
+
+        elif self.de_model == 'gw':
+
+            self.omgwh2 = args['omgwh2']
+            del args['omgwh2']
+            self.n_t = args['n_t']
+            del args['n_t']
+
+        elif self.de_model == 'gw_k':
+
+            self.omgwh2 = args['omgwh2']
+            del args['omgwh2']
+
+        if self.init_model == 'tensor_spline':
+
+            kbins = []
+            pattern = re.compile(r"pk_t_([0-9])+")
+            for k, v in list(args.items()):
+                m = re.search(pattern, k)
+                if m is not None:
+                    kbins.append(v)
+                    del args[k]
+            self.kbins = kbins
+            self.ns = args['ns']
+            del args['ns']
+            self.As = args['As']
+            del args['As']
+
+        # AJM - End modification
+
         try:
             if not self._base_params:
                 base_args = args.copy()
@@ -620,7 +870,8 @@ class camb(BoltzmannBase):
                             self.camb.CAMBparams.set_for_lmax).args[1:]:
                         base_args.pop(not_needed, None)
                 self._reduced_extra_args = self.extra_args.copy()
-                params = self.camb.set_params(**base_args)
+                #params = self.camb.set_params(**base_args)
+                params = self.set_camb_params(**base_args)
                 # pre-set the parameters that are not varying
                 for non_param_func in ['set_classes', 'set_matter_power', 'set_for_lmax']:
                     for fixed_param in getfullargspec(
@@ -662,7 +913,8 @@ class camb(BoltzmannBase):
                 self._base_params = params
             else:
                 args.update(self._reduced_extra_args)
-            return self.camb.set_params(self._base_params.copy(), **args)
+            #return self.camb.set_params(self._base_params.copy(), **args)
+            return self.set_camb_params(self._base_params.copy(), **args)
         except self.camb.baseconfig.CAMBParamRangeError:
             if self.stop_at_error:
                 raise LoggedError(self.log, "Out of bound parameters: %r",

@@ -388,6 +388,7 @@ class Prior(HasLogger):
         self.ref_pdf = []
         self._ref_is_pointlike = True
         self._bounds = np.zeros((len(sampled_params_info), 2))
+        self.smoothing = None
         for i, p in enumerate(sampled_params_info):
             self.params += [p]
             prior = sampled_params_info[p].get(_prior)

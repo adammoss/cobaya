@@ -19,7 +19,7 @@ import json
 from cobaya.tools import read_dnumber, get_external_function
 from cobaya.sampler import Sampler
 from cobaya.mpi import get_mpi_comm
-from cobaya.mpi import am_single_or_primary_process, more_than_one_process, sync_processes
+from cobaya.mpi import is_main_process, more_than_one_process, sync_processes
 from cobaya.log import LoggedError
 from cobaya.install import download_github_release
 from cobaya.conventions import _weight, _chi2, _minuslogpost, _minuslogprior
@@ -30,13 +30,13 @@ from cobaya.yaml import yaml_dump_file
 class nn(Sampler):
     def initialize(self):
         """Imports the nnest sampler and prepares its arguments."""
-        if am_single_or_primary_process():  # rank = 0 (MPI master) or None (no MPI)
+        if is_main_process():  # rank = 0 (MPI master) or None (no MPI)
             self.log.info("Initializing")
         # If path not given, try using general path to modules
         if not self.path and self.path_install:
             self.path = get_path(self.path_install)
         if self.path:
-            if am_single_or_primary_process():
+            if is_main_process():
                 self.log.info("Importing *local* nnest from " + self.path)
                 if not os.path.exists(os.path.realpath(self.path)):
                     raise LoggedError(self.log, "The given path does not exist. "
@@ -92,7 +92,7 @@ class nn(Sampler):
                 output_prefix = get_mpi_comm().bcast(output_prefix, root=0)
         self.base_dir = os.path.join(output_folder, self.base_dir)
         self.file_root = output_prefix
-        if am_single_or_primary_process():
+        if is_main_process():
             # Creating output folder, if it does not exist (just one process)
             if not os.path.exists(self.base_dir):
                 os.makedirs(self.base_dir)
@@ -159,7 +159,7 @@ class nn(Sampler):
             return np.array(logl), np.array(der)
 
         sync_processes()
-        if am_single_or_primary_process():
+        if is_main_process():
             self.log.info("Sampling!")
 
         nn = self.nnest.NestedSampler(self.nDims,

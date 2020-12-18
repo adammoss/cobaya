@@ -1,0 +1,20 @@
+  omgwh2:
+    prior:
+      min: 0.0
+      max: 0.00001
+    ref:
+      dist: norm
+      loc: 0.000005
+      scale: 0.000002
+    proposal: 0.000002
+    latex: \Omega_\mathrm{GW} h^2
+  n_t:
+    prior:
+      min: 3
+      max: 5
+    ref:
+      dist: norm
+      loc: 4.0
+      scale: 0.5
+    proposal: 0.5
+    latex: n_\mathrm{t}

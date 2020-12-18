@@ -1,0 +1,20 @@
+  w_late_1:
+    prior:
+      min: -1.0
+      max: -0.8
+    ref:
+      dist: norm
+      loc: -0.95
+      scale: 0.02
+    proposal: 0.02
+    latex: w_{\rm late 1}
+  w_late_2:
+    prior:
+      min: -1.0
+      max: -0.8
+    ref:
+      dist: norm
+      loc: -0.95
+      scale: 0.02
+    proposal: 0.02
+    latex: w_{\rm late 2}

@@ -1,0 +1,150 @@
+  pk_t_1:
+    prior:
+      min: -11.0
+      max: 0.0
+    ref:
+      dist: norm
+      loc: -9.0
+      scale: 1.0
+    proposal: 1.0
+    latex: p_{k1}
+  pk_t_2:
+    prior:
+      min: -11.0
+      max: 0.0
+    ref:
+      dist: norm
+      loc: -9.0
+      scale: 1.0
+    proposal: 1.0
+    latex: p_{k2}
+  pk_t_3:
+    prior:
+      min: -11.0
+      max: 0.0
+    ref:
+      dist: norm
+      loc: -9.0
+      scale: 1.0
+    proposal: 1.0
+    latex: p_{k3}
+  pk_t_4:
+    prior:
+      min: -11.0
+      max: 0.0
+    ref:
+      dist: norm
+      loc: -9.0
+      scale: 1.0
+    proposal: 1.0
+    latex: p_{k4}
+  pk_t_5:
+    prior:
+      min: -11.0
+      max: 0.0
+    ref:
+      dist: norm
+      loc: -9.0
+      scale: 1.0
+    proposal: 1.0
+    latex: p_{k5}
+  pk_t_6:
+    prior:
+      min: -11.0
+      max: 0.0
+    ref:
+      dist: norm
+      loc: -9.0
+      scale: 1.0
+    proposal: 1.0
+    latex: p_{k6}
+  pk_t_7:
+    prior:
+      min: -11.0
+      max: 0.0
+    ref:
+      dist: norm
+      loc: -9.0
+      scale: 1.0
+    proposal: 1.0
+    latex: p_{k7}
+  pk_t_8:
+    prior:
+      min: -11.0
+      max: 0.0
+    ref:
+      dist: norm
+      loc: -9.0
+      scale: 1.0
+    proposal: 1.0
+    latex: p_{k8}
+  pk_t_9:
+    prior:
+      min: -11.0
+      max: 0.0
+    ref:
+      dist: norm
+      loc: -9.0
+      scale: 1.0
+    proposal: 1.0
+    latex: p_{k9}
+  pk_t_10:
+    prior:
+      min: -11.0
+      max: 0.0
+    ref:
+      dist: norm
+      loc: -9.0
+      scale: 1.0
+    proposal: 1.0
+    latex: p_{k10}
+  pk_t_11:
+    prior:
+      min: -11.0
+      max: 0.0
+    ref:
+      dist: norm
+      loc: -9.0
+      scale: 1.0
+    proposal: 1.0
+    latex: p_{k11}
+  pk_t_12:
+    prior:
+      min: -11.0
+      max: 0.0
+    ref:
+      dist: norm
+      loc: -9.0
+      scale: 1.0
+    proposal: 1.0
+    latex: p_{k12}
+  pk_t_13:
+    prior:
+      min: -11.0
+      max: 0.0
+    ref:
+      dist: norm
+      loc: -9.0
+      scale: 1.0
+    proposal: 1.0
+    latex: p_{k13}
+  pk_t_14:
+    prior:
+      min: -11.0
+      max: 0.0
+    ref:
+      dist: norm
+      loc: -9.0
+      scale: 1.0
+    proposal: 1.0
+    latex: p_{k14}
+  pk_t_15:
+    prior:
+      min: -11.0
+      max: 0.0
+    ref:
+      dist: norm
+      loc: -9.0
+      scale: 1.0
+    proposal: 1.0
+    latex: p_{k15}

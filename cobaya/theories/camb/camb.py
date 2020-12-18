@@ -1,18 +1,12 @@
 """
 .. module:: theories.camb
-
 :Synopsis: Managing the CAMB cosmological code
 :Author: Jesus Torrado and Antony Lewis
-
 .. |br| raw:: html
-
    <br />
-
 This module imports and manages the CAMB cosmological code.
 It requires CAMB 1.1.2 or higher.
-
 .. note::
-
    **If you use this cosmological code, please cite it as:**
    |br|
    A. Lewis, A. Challinor, A. Lasenby,
@@ -22,145 +16,100 @@ It requires CAMB 1.1.2 or higher.
    C. Howlett, A. Lewis, A. Hall, A. Challinor,
    *CMB power spectrum parameter degeneracies in the era of precision cosmology*
    (`arXiv:1201.3654 <https://arxiv.org/abs/1201.3654>`_)
-
-
 Usage
 -----
-
 If you are using a likelihood that requires some observable from CAMB, simply add CAMB
 to the theory block.
-
 You can specify any parameter that CAMB understands in the ``params`` block:
-
 .. code-block:: yaml
-
    theory:
      camb:
        extra_args:
          [any param that CAMB understands, for FIXED and PRECISION]
-
    params:
        [any param that CAMB understands, fixed, sampled or derived]
-
-
 If you want to use your own version of CAMB, you need to specify its location with a
 ``path`` option inside the ``camb`` block. If you do not specify a ``path``,
 CAMB will be loaded from the automatic-install ``packages_path`` folder, if specified, or
 otherwise imported as a globally-installed Python package. Cobaya will print at
 initialisation where it is getting CAMB from.
-
 .. _camb_modify:
-
 Modifying CAMB
 ^^^^^^^^^^^^^^
-
 If you modify CAMB and add new variables, make sure that the variables you create are
 exposed in the Python interface (`instructions here
 <https://camb.readthedocs.io/en/latest/model.html#camb.model.CAMBparams>`__).
 If you follow those instructions you do not need to make any additional modification in
 Cobaya.
-
 You can use the :doc:`model wrapper <cosmo_model>` to test your modification by
 evaluating observables or getting derived quantities at known points in the parameter
 space (set ``debug: True`` to get more detailed information of what exactly is passed to
 CAMB).
-
 In your CAMB modification, remember that you can raise a ``CAMBParamRangeError`` or a
 ``CAMBError`` whenever the computation of any observable would fail, but you do not
 expect that observable to be compatible with the data (e.g. at the fringes of the
 parameter space). Whenever such an error is raised during sampling, the likelihood is
 assumed to be zero, and the run is not interrupted.
-
-
 Installation
 ------------
-
 Pre-requisites
 ^^^^^^^^^^^^^^
-
 **cobaya** calls CAMB using its Python interface, which requires that you compile CAMB
 using intel's ifort compiler or the GNU gfortran compiler version 6.4 or later.
 To check if you have the latter, type ``gfortran --version`` in the shell,
 and the first line should look like
-
 .. code::
-
    GNU Fortran ([your OS version]) [gfortran version] [release date]
-
 Check that ``[gfortran's version]`` is at least 6.4. If you get an error instead, you need
 to install gfortran (contact your local IT service).
-
 CAMB comes with binaries pre-built for Windows, so if you don't need to modify the CAMB
 source code, no Fortran compiler is needed.
-
 If you are using Anaconda you can also install a pre-compiled CAMB package from conda
 forge using
-
 .. code::
-
   conda install -c conda-forge camb
-
 Automatic installation
 ^^^^^^^^^^^^^^^^^^^^^^
-
 If you do not plan to modify CAMB, the easiest way to install it is using the
 :doc:`automatic installation script <installation_cosmo>`. Just make sure that
 ``theory: camb:`` appears in one of the files passed as arguments to the installation
 script.
-
-
 Manual installation (or using your own version)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
 If you are planning to modify CAMB or use an already modified version,
 you should not use the automatic installation script. Use the installation method that
 best adapts to your needs:
-
 * [**Recommended for staying up-to-date**]
   To install CAMB locally and keep it up-to-date, clone the
   `CAMB repository in Github <https://github.com/cmbant/CAMB>`_
   in some folder of your choice, say ``/path/to/theories/CAMB``:
-
   .. code:: bash
-
       $ cd /path/to/theories
       $ git clone --recursive https://github.com/cmbant/CAMB.git
       $ cd CAMB
       $ python setup.py build
-
   To update to the last changes in CAMB (master), run ``git pull`` from CAMB's folder and
   re-build using the last command. If you do not want to use multiple versions of CAMB,
   you can also make your local installation available to python generally by installing
   it using
-
 .. code:: bash
-
      $ python -m pip install -e /path/to/CAMB
-
 * [**Recommended for modifying CAMB**]
   First, `fork the CAMB repository in Github <https://github.com/cmbant/CAMB>`_
   (follow `these instructions <https://help.github.com/articles/fork-a-repo/>`_) and then
   follow the same steps as above, substituting the second one with:
-
   .. code:: bash
-
       $ git clone --recursive https://[YourGithubUser]@github.com/[YourGithubUser]/CAMB.git
-
 * To use your own version, assuming it's placed under ``/path/to/theories/CAMB``,
   just make sure it is compiled (and that the version on top of which you based your
   modifications is old enough to have the Python interface implemented.
-
 In the cases above, you **must** specify the path to your CAMB installation in
 the input block for CAMB (otherwise a system-wide CAMB may be used instead):
-
 .. code:: yaml
-
    theory:
      camb:
        path: /path/to/theories/CAMB
-
 .. note::
-
    In any of these methods, if you intent to switch between different versions or
    modifications of CAMB you should not install CAMB as python package using
    ``python setup.py install``, as the official instructions suggest.
@@ -523,7 +472,6 @@ class camb(BoltzmannBase):
     def _get_derived(self, p, intermediates):
         """
         General function to extract a single derived parameter.
-
         To get a parameter *from a likelihood* use `get_param` instead.
         """
         if intermediates.derived:
@@ -546,7 +494,6 @@ class camb(BoltzmannBase):
         Returns a dictionary of derived parameters with their values,
         using the *current* state (i.e. it should only be called from
         the ``compute`` method).
-
         To get a parameter *from a likelihood* use `get_param` instead.
         """
         derived = {}
@@ -628,7 +575,6 @@ class camb(BoltzmannBase):
     def get_CAMBdata(self):
         """
         Get the CAMB result object (must have been requested as a requirement).
-
         :return: CAMB's `CAMBdata <https://camb.readthedocs.io/en/latest/results.html>`_
                  result instance for the current parameters
         """

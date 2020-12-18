@@ -1,0 +1,10 @@
+  omgwh2:
+    prior:
+      min: 0.0000
+      max: 0.00001
+    ref:
+      dist: norm
+      loc: 0.000005
+      scale: 0.000002
+    proposal: 0.000002
+    latex: \Omega_\mathrm{GW} h^2

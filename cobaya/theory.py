@@ -68,6 +68,26 @@ class Theory(CobayaComponent):
         self._helpers = {}
         self._input_params_extra = set()
 
+        # AJM
+        max_z_early = 10000.0
+        min_z_early = 500.0
+        max_z_late = 3.0
+        min_z_late = 0.0
+        self.max_a_early = 1 / (1 + min_z_early)
+        self.min_a_early = 1 / (1 + max_z_early)
+        self.max_a_late = 1 / (1 + min_z_late)
+        self.min_a_late = 1 / (1 + max_z_late)
+
+        self.w = lambda a: -1.0
+        self.w_min = -2.0
+        self.w_max = 1.0
+        self.w_bbn = -1.0
+        self.w_dark_ages = -1.0
+        self.omm_test = 0.3
+
+        self.k_t_min = -3.5
+        self.k_t_max = -0.5
+
     def get_requirements(self):
         """
         Get a dictionary of requirements that are always needed (e.g. must be calculated

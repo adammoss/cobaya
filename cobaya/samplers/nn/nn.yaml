@@ -1,0 +1,38 @@
+# Default arguments for the nnest sampler
+
+sampler:
+  nn:
+    # Path to the nnest installation folder
+    path:  # use only if installed manually!
+    # Optional parameters for the sampler:
+    # ('Xd' means 'X steps per dimension')
+    # -------------------------------------------------
+    # Number of live points
+    nlive: 25d
+    # Number of MCMC steps each new sample.
+    mcmc_steps: 5d
+    # Whether to check for and explore multi-modality on the posterior
+    # Stopping criterion: fraction of the total evidence contained in the live points
+    precision_criterion: 0.001
+    # Stopping criterion (alt): maximum number of nested sampling iterations
+    # How often to print progress, update output files and do clustering
+    # -- increase for more frequency (1 for update and callback per dead point)
+    # Numerical value of log(0)
+    # If null: `numpy.nan_to_num(-numpy.inf)` (produces an error in `ifort`!)
+    logzero: -1e300  # safer
+    # Verbosity during the sampling process. Set to one of [0,1,2,3]
+    feedback:  # default: Same as global `verbosity`
+    blocking:
+    # Treatment of unbounded parameters: confidence level to use
+    # ----------------------------------------------------------
+    # (Use with care if there are likelihood modes close to the edge of the prior)
+    confidence_for_unbounded: 0.9999995  # 5 sigmas of the prior
+    # Seeding runs
+    # ------------
+    seed:  # postitive integer
+    # Raw output of NNest (no need to change them, normally)
+    # ----------------------------------------------------------
+    base_dir: nn_output
+    file_root:
+    write_resume: True
+    read_resume: True

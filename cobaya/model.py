@@ -135,7 +135,8 @@ class Model(HasLogger):
                                                  allow_renames=allow_renames,
                                                  ignore_unused_sampled=post)
         self.prior = Prior(prior_parameterization or self.parameterization,
-                           self._updated_info.get(_prior, None))
+                           self._updated_info.get(_prior, None),
+                           list(self._updated_info.get(_theory).values())[0]) #AJM
         self.timing = timing
         info_theory = self._updated_info.get(kinds.theory)
         self.theory = TheoryCollection(info_theory, packages_path=packages_path,

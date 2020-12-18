@@ -256,10 +256,7 @@ class camb(BoltzmannBase):
             self.extra_attrs["WantTensors"] = True
 
     def get_can_support_params(self):
-        return self.power_params + self.nonlin_params + self.extra_params()
-
-    def extra_params(self):
-        return ['spike_%s' % i for i in range(1, 50)]
+        return self.power_params + self.nonlin_params
 
     def get_allow_agnostic(self):
         return False
@@ -1065,6 +1062,10 @@ class CambTransfers(HelperTheory):
         for name, mapped in self.cobaya_camb.renames.items():
             if mapped in supported_params:
                 supported_params.add(name)
+        # AJM - add support for spike parameters
+        for i in range(1, 50):
+            supported_params.add('spike_%s' % i)
+            supported_params.add('spike_linear_%s' % i)
         return supported_params
 
     def get_allow_agnostic(self):

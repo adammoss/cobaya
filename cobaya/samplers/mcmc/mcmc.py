@@ -169,8 +169,9 @@ class mcmc(CovmatSampler):
         self.current_point.add(initial_point, derived=derived, logpost=logpost,
                                logpriors=logpriors, loglikes=loglikes)
         self.log.info("Initial point: %s", self.current_point)
-        # AJM
-        self.log.info(self.current_point.kwargs)
+        # AJM - print chi2 of initial point
+        print(", ".join(['%s:%.7g' % (k, v) for k, v in zip(self.collection.chi2_names, -2*loglikes)]))
+        print(", ".join(['%s:%.7g' % (k, v) for k, v in zip(self.collection.minuslogprior_names, logpriors)]))
         # Max #(learn+convergence checks) to wait,
         # in case one process dies without sending MPI_ABORT
         self.been_waiting = 0

@@ -135,12 +135,12 @@ class Model(HasLogger):
                                                  allow_renames=allow_renames,
                                                  ignore_unused_sampled=post)
         # AJM - add theory argument to prior
+        info_theory = self._updated_info.get(kinds.theory)
         self.prior = Prior(prior_parameterization or self.parameterization,
                            self._updated_info.get(_prior, None),
-                           list(self._updated_info.get(kinds.theory).values())[0])
+                           info_theory)
         # AJM - end modification
         self.timing = timing
-        info_theory = self._updated_info.get(kinds.theory)
         self.theory = TheoryCollection(info_theory, packages_path=packages_path,
                                        timing=timing)
         info_likelihood = self._updated_info[kinds.likelihood]

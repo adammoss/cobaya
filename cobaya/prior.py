@@ -468,11 +468,15 @@ class Prior(HasLogger):
                                    .difference(opts["constant_params"])))
                 self.mpi_warning("External prior '%s' loaded. "
                                  "Mind that it might not be normalized!", name)
-        if info_theory is not None and info_theory.get('de_model', None) in ['spikes', 'spikes_w_a']:
-            self.a_spikes = np.logspace(np.log10(info_theory['first_spike']), 0, info_theory['num_spikes'])
+        try:
+            de_model = info_theory['camb']['de_model']
+        except:
+            de_model = None
+        if de_model in ['spikes', 'spikes_w_a']:
+            self.a_spikes = np.logspace(np.log10(info_theory['camb']['first_spike']), 0, info_theory['camb']['num_spikes'])
             # Baseline marginalised Planck 2018 + lensing + BAO (table 2 of https://arxiv.org/pdf/1807.06209.pdf)
-            if info_theory['path'] is not None:
-                sys.path.insert(0, info_theory['path'])
+            if info_theory['camb']['path'] is not None:
+                sys.path.insert(0, info_theory['camb']['path'])
             import camb
             H0 = 67.66
             ombh2 = 0.02242

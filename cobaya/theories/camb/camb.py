@@ -1067,6 +1067,8 @@ class CambTransfers(HelperTheory):
         for i in range(1, 50):
             supported_params.add('spike_%s' % i)
             supported_params.add('spike_linear_%s' % i)
+        for p in ['logac', 'f_ede', 'w_n']:
+            supported_params.add(p)
         return supported_params
 
     def get_allow_agnostic(self):

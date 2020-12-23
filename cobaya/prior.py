@@ -491,6 +491,7 @@ class Prior(HasLogger):
             densities_lcdm = results_lcdm.get_background_densities(a)
             total_density = CubicSpline(a, densities_lcdm['tot'] / a ** 4)
             self.total_density_norm = total_density(self.a_spikes) / total_density(1.0)
+            self.blocks = info_theory['camb']['blocks']
         else:
             self.a_spikes = None
 
@@ -612,7 +613,8 @@ class Prior(HasLogger):
         if self.a_spikes is not None:
             param_dict = dict(zip(self.params, x))
             param_dict.update(self.constant_params_info)
-            amplitude_spikes = [1.0E-4 for _ in range(len(self.a_spikes))]
+            default_amplitude = 1.0E-4
+            amplitude_spikes = [default_amplitude for _ in range(len(self.a_spikes))]
             pattern = re.compile(r"spike_([0-9]{1,2})+")
             for k, v in list(param_dict.items()):
                 m = re.search(pattern, k)
@@ -625,11 +627,19 @@ class Prior(HasLogger):
                 if m is not None:
                     bin = int(m.group(1))
                     amplitude_spikes[bin - 1] = v
+            if self.blocks and len(self.blocks) > 0:
+                self.amplitude_spikes = default_amplitude * np.ones(self.a_spikes.shape)
+                last_block = 0
+                for i, block in enumerate(self.blocks):
+                    self.amplitude_spikes[last_block:last_block + block] = amplitude_spikes[i]
+                    last_block += block
+            else:
+                self.amplitude_spikes = np.array(amplitude_spikes)
             rho_de = 0
             w_de = 0
-            amplitude_spikes = amplitude_spikes * self.total_density_norm
+            self.amplitude_spikes *= self.total_density_norm
             for i in range(len(self.a_spikes)):
-                rho = omega(self.a_spikes, self.a_spikes[i], amplitude_spikes[i])
+                rho = omega(self.a_spikes, self.a_spikes[i], self.amplitude_spikes[i])
                 rho_de += rho
                 w_de += rho * wa(self.a_spikes, self.a_spikes[i])
             w_de = w_de / rho_de

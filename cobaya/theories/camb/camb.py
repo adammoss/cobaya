@@ -231,8 +231,12 @@ class camb(BoltzmannBase):
             results_lcdm = self.camb.get_background(pars)
             densities_lcdm = results_lcdm.get_background_densities(a)
             self.omega_lambda = densities_lcdm['de'][-1] / densities_lcdm['tot'][-1]
-            self.total_density = CubicSpline(a, densities_lcdm['tot'] / a ** 4)
+            total_density = CubicSpline(a, densities_lcdm['tot'] / a ** 4)
+            self.a_spikes = np.logspace(np.log10(self.first_spike), 0, self.num_spikes)
+            self.total_density_norm = total_density(self.a_spikes) / total_density(1.0)
             self.a_vals = a
+            if self.blocks and len(self.blocks) > 0:
+                assert sum(self.blocks) == self.num_spikes
 
         if self.init_model is not None:
             self.log.info("Using initial power model: " + self.init_model)
@@ -808,8 +812,6 @@ class camb(BoltzmannBase):
                     amplitude_spikes[bin - 1] = v
                     del args[k]
 
-            self.a_spikes = np.logspace(np.log10(self.first_spike), 0, len(amplitude_spikes))
-
             if self.blocks and len(self.blocks) > 0:
                 self.amplitude_spikes = default_amplitude * np.ones(self.a_spikes.shape)
                 last_block = 0
@@ -818,9 +820,7 @@ class camb(BoltzmannBase):
                     last_block += block
             else:
                 self.amplitude_spikes = np.array(amplitude_spikes)
-
-            self.amplitude_spikes = self.total_density(self.a_spikes) / self.total_density(1.0) * \
-                                    self.amplitude_spikes
+            self.amplitude_spikes += self.total_density_norm
 
             if 'cs2' in args:
                 self.cs2 = args['cs2']

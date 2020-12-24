@@ -820,7 +820,7 @@ class camb(BoltzmannBase):
                     last_block += block
             else:
                 self.amplitude_spikes = np.array(amplitude_spikes)
-            self.amplitude_spikes += self.total_density_norm
+            self.amplitude_spikes *= self.total_density_norm
 
             if 'cs2' in args:
                 self.cs2 = args['cs2']

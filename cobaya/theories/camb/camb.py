@@ -217,6 +217,8 @@ import platform
 from copy import deepcopy
 from typing import NamedTuple, Any, Callable, Optional
 import numpy as np
+from scipy.integrate import solve_ivp
+from scipy.interpolate import CubicSpline
 from itertools import chain
 # Local
 from cobaya.component import ComponentNotInstalledError, load_external_module
@@ -880,8 +882,18 @@ class CAMB(BoltzmannBase):
             if w0 is not None:
                 a = np.logspace(-5, 0, 1000)
                 if self.de_expansion == 'clock':
+                    def derivs(t, y, w0, w1):
+                        omega_de = y[0]
+                        return -3 * omega_de * ((w0 + w1 * omega_de) * (1 - omega_de))
                     results = self.camb.get_results(pars)
-                    w = w0 + w1 * results.get_Omega('de', z=1/a-1)
+                    ln_a = np.linspace(0, -5, 1000)
+                    y0 = [results.get_Omega('de', z=0)]
+                    sol = solve_ivp(derivs, [max(ln_a), min(ln_a)], y0, t_eval=ln_a, args=(w0, w1), rtol=1e-12,
+                                    atol=1e-12)
+                    cs = CubicSpline(np.flip(sol.t), np.flip(sol.y[0, :]))
+                    w = np.ones_like(a) * w0
+                    idx = np.where(a > np.exp(-5))
+                    w[idx] = - 1 / 3 * cs(np.log(a[idx]), 1) / (cs(np.log(a[idx])) * (1 - cs(np.log(a[idx]))))
                 elif self.de_expansion == 'cpl':
                     w = w0 + w1 * (1 - a)
                 pars.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()

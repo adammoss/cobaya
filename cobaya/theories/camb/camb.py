@@ -802,6 +802,16 @@ class CAMB(BoltzmannBase):
         return self.camb.__version__
 
     def set(self, params_values_dict, state):
+        if 'w0' in params_values_dict:
+            w0 = params_values_dict['w0']
+            params_values_dict.pop('w0')
+        else:
+            w0 = None
+        if 'w1' in params_values_dict:
+            w1 = params_values_dict['w1']
+            params_values_dict.pop('w1')
+        else:
+            w1 = 0
         # Prepare parameters to be passed: this is called from the CambTransfers instance
         args = {self.translate_param(p): v for p, v in params_values_dict.items()}
         # Generate and save
@@ -866,7 +876,17 @@ class CAMB(BoltzmannBase):
                     params.SourceTerms.limber_windows = self.limber
                 self._base_params = params
             args.update(self._reduced_extra_args)
-            return self.camb.set_params(self._base_params.copy(), **args)
+            pars = self.camb.set_params(self._base_params.copy(), **args)
+            if w0 is not None:
+                a = np.logspace(-5, 0, 1000)
+                if self.de_expansion == 'clock':
+                    results = self.camb.get_results(pars)
+                    w = w0 + w1 * results.get_Omega('de', z=1/a-1)
+                elif self.de_expansion == 'cpl':
+                    w = w0 + w1 * (1 - a)
+                pars.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()
+                pars.DarkEnergy.set_w_a_table(a, w)
+            return pars
         except self.camb.baseconfig.CAMBParamRangeError:
             if self.stop_at_error:
                 raise LoggedError(self.log, "Out of bound parameters: %r",
@@ -997,6 +1017,8 @@ class CambTransfers(HelperTheory):
         for name, mapped in self.cobaya_camb.renames.items():
             if mapped in supported_params:
                 supported_params.add(name)
+        supported_params.add('w0')
+        supported_params.add('w1')
         return supported_params
 
     def get_allow_agnostic(self):

@@ -814,6 +814,11 @@ class CAMB(BoltzmannBase):
             params_values_dict.pop('w1')
         else:
             w1 = 0
+        if 'w2' in params_values_dict:
+            w2 = params_values_dict['w2']
+            params_values_dict.pop('w2')
+        else:
+            w2 = 0
         # Prepare parameters to be passed: this is called from the CambTransfers instance
         args = {self.translate_param(p): v for p, v in params_values_dict.items()}
         # Generate and save
@@ -882,20 +887,20 @@ class CAMB(BoltzmannBase):
             if w0 is not None:
                 a = np.logspace(-5, 0, 1000)
                 if self.de_expansion == 'clock':
-                    def derivs(t, y, w0, w1):
+                    def derivs(t, y, w0, w1, w2):
                         omega_de = y[0]
-                        return -3 * omega_de * ((w0 + w1 * omega_de) * (1 - omega_de))
+                        return -3 * omega_de * ((w0 + w1 * omega_de + w2 * omega_de**2) * (1 - omega_de))
                     results = self.camb.get_results(pars)
                     ln_a = np.linspace(0, -5, 1000)
                     y0 = [results.get_Omega('de', z=0)]
-                    sol = solve_ivp(derivs, [max(ln_a), min(ln_a)], y0, t_eval=ln_a, args=(w0, w1), rtol=1e-12,
+                    sol = solve_ivp(derivs, [max(ln_a), min(ln_a)], y0, t_eval=ln_a, args=(w0, w1, w2), rtol=1e-12,
                                     atol=1e-12)
                     cs = CubicSpline(np.flip(sol.t), np.flip(sol.y[0, :]))
                     w = np.ones_like(a) * w0
                     idx = np.where(a > np.exp(-5))
                     w[idx] = - 1 / 3 * cs(np.log(a[idx]), 1) / (cs(np.log(a[idx])) * (1 - cs(np.log(a[idx]))))
                 elif self.de_expansion == 'cpl':
-                    w = w0 + w1 * (1 - a)
+                    w = w0 + w1 * (1 - a) + w2 * (1 - a)**2
                 pars.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()
                 pars.DarkEnergy.set_w_a_table(a, w)
             return pars
@@ -1031,6 +1036,7 @@ class CambTransfers(HelperTheory):
                 supported_params.add(name)
         supported_params.add('w0')
         supported_params.add('w1')
+        supported_params.add('w2')
         return supported_params
 
     def get_allow_agnostic(self):

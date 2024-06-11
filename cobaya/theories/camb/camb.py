@@ -886,10 +886,15 @@ class CAMB(BoltzmannBase):
             pars = self.camb.set_params(self._base_params.copy(), **args)
             if w0 is not None:
                 a = np.logspace(-5, 0, 1000)
-                if self.de_expansion == 'clock':
-                    def derivs(t, y, w0, w1, w2):
-                        omega_de = y[0]
-                        return -3 * omega_de * ((w0 + w1 * omega_de + w2 * omega_de**2) * (1 - omega_de))
+                if self.de_expansion in ['clock', 'clock_max']:
+                    if self.de_expansion == 'clock':
+                        def derivs(t, y, w0, w1, w2):
+                            omega_de = y[0]
+                            return -3 * omega_de * ((w0 + w1 * omega_de + w2 * omega_de**2) * (1 - omega_de))
+                    elif self.de_expansion == 'clock_max':
+                        def derivs(t, y, w0, w1, w2):
+                            omega_de = y[0]
+                            return -3 * omega_de * ((max(w0 + w1 * omega_de + w2 * omega_de**2, -1)) * (1 - omega_de))
                     results = self.camb.get_results(pars)
                     ln_a = np.linspace(0, -5, 1000)
                     y0 = [results.get_Omega('de', z=0)]
@@ -901,6 +906,8 @@ class CAMB(BoltzmannBase):
                     w[idx] = - 1 / 3 * cs(np.log(a[idx]), 1) / (cs(np.log(a[idx])) * (1 - cs(np.log(a[idx]))))
                 elif self.de_expansion == 'cpl':
                     w = w0 + w1 * (1 - a) + w2 * (1 - a)**2
+                elif self.de_expansion == 'cpl_max':
+                    w = np.maximum(w0 + w1 * (1 - a) + w2 * (1 - a)**2, -1)
                 pars.DarkEnergy = self.camb.dark_energy.DarkEnergyPPF()
                 pars.DarkEnergy.set_w_a_table(a, w)
             return pars

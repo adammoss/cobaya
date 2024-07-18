@@ -887,7 +887,7 @@ class CAMB(BoltzmannBase):
             if w0 is not None:
                 a = np.logspace(-5, 0, 1000)
                 if self.de_expansion in ['clock', 'clock_max', 'clock_noph']:
-                    if self.de_expansion == 'clock':
+                    if self.de_expansion in ['clock', 'clock_noph']:
                         def derivs(t, y, w0, w1, w2):
                             omega_de = y[0]
                             return -3 * omega_de * ((w0 + w1 * omega_de + w2 * omega_de**2) * (1 - omega_de))

@@ -886,7 +886,7 @@ class CAMB(BoltzmannBase):
             pars = self.camb.set_params(self._base_params.copy(), **args)
             if w0 is not None:
                 a = np.logspace(-5, 0, 1000)
-                if self.de_expansion in ['clock', 'clock_max', 'clock_nobs']:
+                if self.de_expansion in ['clock', 'clock_max', 'clock_noph']:
                     if self.de_expansion == 'clock':
                         def derivs(t, y, w0, w1, w2):
                             omega_de = y[0]
@@ -904,11 +904,11 @@ class CAMB(BoltzmannBase):
                     w = np.ones_like(a) * w0
                     idx = np.where(a > np.exp(-5))
                     w[idx] = - 1 / 3 * cs(np.log(a[idx]), 1) / (cs(np.log(a[idx])) * (1 - cs(np.log(a[idx]))))
-                    if self.de_expaneion == 'clock_no_bs' and any(w < -1):
+                    if self.de_expaneion == 'clock_noph' and any(w < -1):
                         return False
-                elif self.de_expansion in ['cpl', 'cpl_nobs']:
+                elif self.de_expansion in ['cpl', 'cpl_noph']:
                     w = w0 + w1 * (1 - a) + w2 * (1 - a)**2
-                    if self.de_expaneion == 'cpl_no_bs' and any(w < -1):
+                    if self.de_expaneion == 'cpl_noph' and any(w < -1):
                         return False
                 elif self.de_expansion == 'cpl_max':
                     w = np.maximum(w0 + w1 * (1 - a) + w2 * (1 - a)**2, -1)

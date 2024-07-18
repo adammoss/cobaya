@@ -904,11 +904,11 @@ class CAMB(BoltzmannBase):
                     w = np.ones_like(a) * w0
                     idx = np.where(a > np.exp(-5))
                     w[idx] = - 1 / 3 * cs(np.log(a[idx]), 1) / (cs(np.log(a[idx])) * (1 - cs(np.log(a[idx]))))
-                    if self.de_expaneion == 'clock_noph' and any(w < -1):
+                    if self.de_expansion == 'clock_noph' and any(w < -1):
                         return False
                 elif self.de_expansion in ['cpl', 'cpl_noph']:
                     w = w0 + w1 * (1 - a) + w2 * (1 - a)**2
-                    if self.de_expaneion == 'cpl_noph' and any(w < -1):
+                    if self.de_expansion == 'cpl_noph' and any(w < -1):
                         return False
                 elif self.de_expansion == 'cpl_max':
                     w = np.maximum(w0 + w1 * (1 - a) + w2 * (1 - a)**2, -1)
